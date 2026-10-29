@@ -1,4 +1,4 @@
-# Dnevnik treninga
+# Training Diary (Dnevnik treninga)
 
 Aplikacija za vođenje dnevnika treninga u teretani, napravljena kao jedna HTML stranica (`index.html`) koja radi kao Claude artifact. Prilagođena je telefonu i tamnoj temi.
 
