@@ -2,6 +2,9 @@
 
 Stare verzije (1 do 16) nisu sačuvane kao posebni commitovi; ovo je pregled onoga što je ušlo u aplikaciju do sada.
 
+## Verzija 18
+- Ispravan prikaz srpskih slova i prikaz na telefonu kada se stranica otvara van Claude-a (doctype, UTF-8, viewport)
+
 ## Verzija 17
 - Izvoz i uvoz podataka (treninzi i šabloni) u JSON fajl
 
