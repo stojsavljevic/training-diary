@@ -1,0 +1,4 @@
+# Lični podaci iz izvoza aplikacije ne idu na GitHub
+dnevnik-treninga-*.json
+*.json
+!package.json

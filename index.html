@@ -1,0 +1,942 @@
+<title>Dnevnik treninga</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one narrow column like a pocket logbook; tab bar pinned to the bottom, rest timer docked above it. */
+:root{
+  --bg:#e6ebe6; --surface:#fafbf9; --surface2:#dbe3dc; --field:#eff3ef; --ink:#15231c; --muted:#596b60; --line:#cbd6cd;
+  --accent:#1e5f47; --accent-ink:#ffffff; --accent-soft:rgba(30,95,71,.2);
+  --good:#2f9468; --good-bg:#d2eadb; --tickink:#ffffff; --warn:#b45f06; --warn-ink:#ffffff; --amber:#e6a23c; --amber-ink:#b4690f; --danger:#c42b3a; --danger-ink:#ffffff;
+  --f-display:'Bricolage Grotesque','Barlow',system-ui,sans-serif;
+  --f-body:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --rc:18px; --rs:12px;
+  --nav-h:66px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+  --bg:#0f1713; --surface:#18221d; --surface2:#233029; --field:#121b16; --ink:#e8f0ea; --muted:#9bb0a3; --line:#2b3a32;
+  --accent:#62c79a; --accent-ink:#0b1a13; --accent-soft:rgba(98,199,154,.25);
+  --good:#4fd69a; --good-bg:#15382a; --tickink:#0b2a1c; --warn:#f0b24f; --warn-ink:#2a1a03; --amber:#f0b24f; --amber-ink:#f0b24f; --danger:#ff7c88; --danger-ink:#2a0a10;
+  color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1713; --surface:#18221d; --surface2:#233029; --field:#121b16; --ink:#e8f0ea; --muted:#9bb0a3; --line:#2b3a32;
+  --accent:#62c79a; --accent-ink:#0b1a13; --accent-soft:rgba(98,199,154,.25);
+  --good:#4fd69a; --good-bg:#15382a; --tickink:#0b2a1c; --warn:#f0b24f; --warn-ink:#2a1a03; --amber:#f0b24f; --amber-ink:#f0b24f; --danger:#ff7c88; --danger-ink:#2a0a10;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink); font:16px/1.4 var(--f-body);
+  padding-block:12px calc(var(--nav-h) + 110px);
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  -webkit-tap-highlight-color:transparent;
+}
+.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+#app{display:flex;flex-direction:column;gap:14px;min-width:0}
+header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:4px}
+h1{font:700 27px/1.05 var(--f-display);letter-spacing:-.01em;margin:0}
+h2{font:700 21px/1.1 var(--f-display);letter-spacing:-.005em;margin:0;text-wrap:balance}
+p{margin:0}
+.muted{color:var(--muted)}
+.label{font:600 12px var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.sync{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;text-align:right}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.sync.live i{background:var(--good)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--rc);box-shadow:0 1px 2px rgba(20,40,30,.07);padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.row{display:flex;align-items:center;gap:10px;min-width:0}
+.row.gap{gap:8px;flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.hint{font-size:13px;color:var(--muted);margin-top:4px}
+.exsum{font-size:14px;color:var(--muted)}
+
+.btn{min-height:44px;padding:0 16px;border-radius:var(--rs);border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 15px var(--f-body);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--danger);border-color:var(--danger)}
+.btn.ghost{background:transparent}
+.btn.sm{min-height:38px;padding:0 13px;font-size:14px}
+.btn.wide{width:100%}
+.icon{width:38px;height:38px;border-radius:var(--rs);border:1px solid var(--line);background:transparent;color:var(--muted);font:500 22px/1 var(--f-body);cursor:pointer;flex:none}
+:is(.btn,.icon,.chip,.chk,.tab,.hhead,input,select):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.txt,select{width:100%;min-height:44px;border-radius:var(--rs);border:1px solid var(--line);background:var(--field);color:var(--ink);padding:0 12px;font:500 16px var(--f-body)}
+.title-in{width:100%;border:0;border-bottom:2px solid var(--line);background:transparent;color:var(--ink);font:700 19px/1.2 var(--f-display);letter-spacing:-.005em;padding:4px 0;border-radius:0}
+.elapsed{font:700 22px/1 var(--f-display);white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--accent);flex:none}
+
+.sets{display:flex;flex-direction:column;gap:8px}
+.sh,.srow{display:grid;grid-template-columns:26px 1fr 1fr 46px;gap:8px;align-items:center}
+.sh{font:600 11px var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:center}
+.sn{font:600 18px var(--f-display);color:var(--muted);text-align:center}
+.num{width:100%;min-width:0;min-height:46px;border-radius:var(--rs);border:1px solid var(--line);background:var(--field);color:var(--ink);font:700 22px var(--f-display);text-align:center;font-variant-numeric:tabular-nums}
+.chk{width:46px;height:46px;border-radius:var(--rs);border:1px solid var(--line);background:var(--surface);color:var(--muted);display:grid;place-items:center;cursor:pointer;padding:0}
+.chk svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.srow.done .num{background:var(--good-bg);border-color:var(--good)}
+.srow.done .chk{background:var(--good);border-color:var(--good);color:var(--tickink)}
+.srow.cur .num{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+
+.icon.mv{width:34px;height:34px;display:grid;place-items:center;padding:0}
+.icon svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.icon[disabled]{opacity:.3;cursor:default}
+.card.closed{padding:10px 14px}
+.card.closed h2{font-size:18px}
+.tick{width:28px;height:28px;border-radius:50%;background:var(--good);color:var(--tickink);display:grid;place-items:center;flex:none;font:600 16px var(--f-body)}
+.tick svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.tick.skip{background:var(--surface2);color:var(--muted)}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:38px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:600 14px var(--f-body);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+
+.stats{display:flex;gap:28px;flex-wrap:wrap}
+.stats div{display:flex;flex-direction:column}
+.stats b{font:700 34px/1 var(--f-display);font-variant-numeric:tabular-nums}
+.stats span{font-size:13px;color:var(--muted)}
+
+.hhead{all:unset;display:flex;align-items:center;gap:10px;width:100%;cursor:pointer;box-sizing:border-box}
+.hhead:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:6px}
+.hhead .caret{color:var(--muted);transition:transform .15s}
+.hhead[aria-expanded="true"] .caret{transform:rotate(180deg)}
+.detail{display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line);padding-top:12px}
+.detail h3{font:700 17px var(--f-display);margin:0 0 2px}
+.setline{font-size:15px;color:var(--muted);font-variant-numeric:tabular-nums}
+.kv{display:flex;justify-content:space-between;gap:12px;font-variant-numeric:tabular-nums;border-top:1px solid var(--line);padding-top:8px}
+.kv:first-of-type{border-top:0;padding-top:0}
+.kv b{font-weight:600}
+.empty{align-items:flex-start}
+
+svg.chart{width:100%;height:auto;display:block}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .axis{fill:var(--muted);font:12px var(--f-body)}
+.chart .line{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+.chart .dot{fill:var(--accent)}
+.chart .dotlast{fill:var(--amber);stroke:var(--accent);stroke-width:2.5}
+.chart .dotlbl{fill:var(--ink);font:600 13px var(--f-body)}
+
+nav#nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:0 max(8px,env(safe-area-inset-left,0px)) env(safe-area-inset-bottom,0px) max(8px,env(safe-area-inset-right,0px));z-index:20}
+.tabs{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);height:var(--nav-h);padding:6px 0;gap:2px}
+.tab{all:unset;box-sizing:border-box;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:600 12px var(--f-body);color:var(--muted);cursor:pointer}
+.tab:focus-visible{outline:2px solid var(--accent);outline-offset:-4px;border-radius:var(--rs)}
+.tab svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.tab[aria-current="page"]{color:var(--accent);background:var(--good-bg)}
+
+.swtime{font:700 clamp(60px,21vw,104px)/1 var(--f-display);font-variant-numeric:tabular-nums;text-align:center;letter-spacing:.01em;padding:12px 0 6px}
+.swtime small{font-size:.5em;color:var(--muted)}
+.swbtns{display:flex;gap:8px}
+.swbtns .btn{flex:1}
+.swbtns .btn.big{flex:1.5;min-height:56px;font-size:18px}
+.btn[disabled]{opacity:.4;cursor:default}
+.lap{display:grid;grid-template-columns:1fr auto auto;gap:16px;align-items:baseline;padding:9px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.lap:first-child{border-top:0}
+.lap .lt{font:600 21px var(--f-display)}
+.lap.best .lt{color:var(--good)}
+.lap.worst .lt{color:var(--danger)}
+
+#rest{position:fixed;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + 10px);z-index:19}
+#rest{--rbg:var(--accent);--rink:var(--accent-ink)}
+#rest.warn{--rbg:var(--warn);--rink:var(--warn-ink)}
+#rest.warn .rest-in{animation:warnpulse 1s ease-in-out infinite}
+#rest.over{--rbg:var(--danger);--rink:var(--danger-ink)}
+@keyframes warnpulse{0%,100%{filter:brightness(1)}50%{filter:brightness(.7)}}
+@media (prefers-reduced-motion:reduce){#rest.warn .rest-in{animation:none;outline:3px solid var(--warn-ink);outline-offset:-3px}}
+.rest-in{max-width:560px;margin:0 auto;background:var(--rbg);color:var(--rink);border-radius:16px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 24px rgba(8,28,18,.4)}
+.rest-in .label{color:var(--rink);opacity:.8;white-space:nowrap}
+.rest-in .btn{background:color-mix(in srgb,var(--rink) 18%,transparent);border-color:transparent;color:var(--rink)}
+.rest-in .btn.primary{background:var(--rink);border-color:var(--rink);color:var(--rbg)}
+.rtime{font:700 36px/1 var(--f-display);font-variant-numeric:tabular-nums;color:var(--rink)}
+.rbar{height:16px;border-radius:8px;background:color-mix(in srgb,var(--rink) 30%,transparent);overflow:hidden;box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--rink) 55%,transparent)}
+.rbar i{display:block;height:100%;width:0;background:var(--rink);border-radius:8px}
+
+#toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 12px);max-width:min(92vw,520px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:var(--rs);font:500 15px var(--f-body);z-index:30;text-align:center}
+@media (prefers-reduced-motion:reduce){.hhead .caret{transition:none}}
+
+.card.ex{padding:10px 12px;gap:8px}
+.card.closed.ex{padding:8px 12px}
+.ex h2{font-size:18px}
+.card.closed.ex h2{font-size:16px}
+.ex .hint{font-size:12px;margin-top:2px}
+.ex .sh,.ex .srow{grid-template-columns:22px 1fr 1fr 40px;gap:6px}
+.ex .sets{gap:6px}
+.ex .num{min-height:40px;font-size:19px}
+.ex .chk{width:40px;height:40px}
+.ex .chk svg{width:19px;height:19px}
+.ex .icon,.ex .icon.mv{width:30px;height:30px}
+.ex .icon svg{width:16px;height:16px}
+.ex .sn{font-size:15px}
+.card.closed.ex .tick{width:24px;height:24px}
+.card.closed.ex .tick svg{width:14px;height:14px}
+.trow{display:flex;flex-direction:column;gap:8px;padding-top:10px;border-top:1px solid var(--line)}
+.label+.trow{border-top:0;padding-top:0}
+.tr2{gap:6px;flex-wrap:wrap}
+.txt.kgin{width:68px;min-height:40px;text-align:center;font-weight:600;padding:0 8px}
+.lvname{font:700 26px/1.1 var(--f-display);letter-spacing:-.01em}
+.lvval{text-align:right;color:var(--muted);font:500 13px var(--f-body)}
+.lvval b{display:block;font:700 24px/1.1 var(--f-display);color:var(--ink);font-variant-numeric:tabular-nums}
+.lvbar{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.lvbar i{display:block;height:10px;border-radius:5px;background:var(--surface2);overflow:hidden}
+.lvbar i b{display:block;height:100%;background:var(--accent);border-radius:5px}
+.lvbar.mini{width:96px;flex:none}
+.lvbar.mini i{height:6px;border-radius:3px}
+.lvcols{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;text-align:center}
+.lvcols div{display:flex;flex-direction:column;gap:1px;padding:5px 0;border-radius:8px;color:var(--muted);font:600 11px var(--f-body);letter-spacing:.05em;text-transform:uppercase}
+.lvcols div span{font:700 17px/1.1 var(--f-display);text-transform:none;letter-spacing:0;font-variant-numeric:tabular-nums}
+.lvcols .on{color:var(--ink)}
+.lvcols .cur{background:var(--good-bg);color:var(--accent)}
+.lvgap{font:500 15px var(--f-body);color:var(--muted)}
+.lvgap b{color:var(--ink);font-weight:700}
+.ovrow{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:12px;width:100%;padding:10px 0;border-top:1px solid var(--line);cursor:pointer}
+.ovrow:first-child{border-top:0}
+.ovrow:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.ovn{font:600 16px var(--f-body)}
+.ovsub{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+</style>
+
+<div class="wrap">
+  <main id="app"></main>
+</div>
+<div id="rest" hidden></div>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<nav id="nav" aria-label="Glavna navigacija"></nav>
+<datalist id="exlist"></datalist>
+
+<script>
+(function(){
+'use strict';
+const $=s=>document.querySelector(s);
+const app=$('#app');
+
+/* ---------- local cache ---------- */
+const LS={
+  get(k,d){try{const v=localStorage.getItem('dt.'+k);return v?JSON.parse(v):d}catch(e){return d}},
+  set(k,v){try{localStorage.setItem('dt.'+k,JSON.stringify(v))}catch(e){}}
+};
+
+/* ---------- constants ---------- */
+/* Plan: every exercise is 3 sets x 6 reps; kg is the starting weight. */
+const P=(name,kg,note)=>({name,sets:3,reps:6,kg:kg||'',note:note||''});
+const STARTERS=[
+  {id:'plan-pon',day:1,name:'Ponedeljak · PUSH',exercises:[P('Ravan Smith',50),P('Chest press',70),P('Cable crossover',45),P('Dips'),P('Shoulder Press',40),P('Lat pulldown Š',60),P('Barbell Curl',25),P('Multi Flight',65),P('Triceps extension',45),P('Calf Machine',50)]},
+  {id:'plan-sre',day:3,name:'Sreda · MIX',exercises:[P('Arnold Press',12.5),P('Lateral Raise',8),P('Assisted Pull Up U',55),P('Supinated Front Rise',8),P('Incline Bench Press / Smith',50),P('Pec deck',60),P('Dumbbell Curl',10),P('Cable row Š',65),P('Abductor machine s/š',75,'75 / 85 kg'),P('Dumbbell Shrugs',25)]},
+  {id:'plan-pet',day:5,name:'Petak · PULL',exercises:[P('Reverse Fly',8),P('Assisted Pull Up Š',60),P('Upright Row',12.5),P('Incline Bench Press / Smith',50),P('Calf Machine',50),P('Lat pulldown U',60),P('Cable row U',65),P('Isolation Curl',10),P('Triceps extension',45),P('Farmer Walk',20)]}
+];
+const BUILTIN=[...new Set(STARTERS.flatMap(s=>s.exercises.map(e=>e.name)))];
+
+const ICON={
+  train:'<path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/>',
+  tpl:'<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',
+  hist:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  prog:'<path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/>',
+  sw:'<circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 1.5M9.5 2.5h5M12 2.5V6"/>'
+};
+const TABS=[['train','Trening'],['tpl','Šabloni'],['hist','Istorija'],['prog','Napredak'],['sw','Štoperica']];
+const CHECK='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const CARET='<svg class="caret" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+
+const UP='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>';
+const DOWN='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+
+/* ---------- state ---------- */
+const state={
+  tab:'train',
+  workouts:LS.get('workouts',[]),
+  templates:LS.get('templates',[]),
+  active:LS.get('active',null),
+  settings:Object.assign({rest:90,autoRest:true},LS.get('settings',{})),
+  sync:'local',
+  openId:null,
+  draft:null,
+  confirm:null,
+  progEx:null,
+  progMetric:null,
+  rest:null,
+  sw:Object.assign({running:false,startedAt:0,base:0,laps:[]},LS.get('sw',{}))
+};
+
+/* ---------- helpers ---------- */
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const num=v=>{const n=parseFloat(String(v).replace(',','.'));return isFinite(n)?n:0};
+const fmt=n=>String(Math.round(n*100)/100).replace('.',',');
+const fmtInt=n=>Math.round(n).toLocaleString('sr-Latn-RS');
+const key=n=>String(n).trim().toLowerCase();
+const e1rm=(kg,reps)=>kg>0&&reps>0?kg*(1+reps/30):0;
+
+/* ---------- reference levels (1RM, kg) ---------- */
+const LEVELS=['Beginner','Novice','Intermediate','Advanced','Elite'];
+const LV_SHORT=['Beg','Nov','Int','Adv','Elite'];
+const REF={
+  'bench press':[43,62,85,112,142],'chest press':[30,50,76,107,142],'shoulder press':[22,40,65,96,131],
+  'lat pulldown':[37,53,72,95,118],'barbell curl':[17,27,40,55,72],'dips':[1,7,14,24,34],
+  'tricep extension':[25,42,63,89,118],'calf raise':[25,48,80,121,168],'lateral raise':[4,8,14,21,30],
+  'arnold press':[8,14,21,30,40],'incline bench press':[38,55,76,101,127],'pec deck':[32,51,75,104,136],
+  'dumbbell curl':[6,11,19,27,37],'cable row':[37,54,75,99,126],'abductor machine':[30,52,82,117,157],
+  'dumbbell shrugs':[13,23,37,55,75],'reverse fly':[3,7,15,25,37],'upright row':[6,12,21,33,46],
+  'lat pulldown u':[43,59,79,101,124],'farmers walk':[8,18,33,52,74]
+};
+const REF_MAP={
+  'ravan smith':'bench press','chest press':'chest press','shoulder press':'shoulder press',
+  'lat pulldown š':'lat pulldown','lat pulldown u':'lat pulldown u','barbell curl':'barbell curl','dips':'dips',
+  'triceps extension':'tricep extension','calf machine':'calf raise','lateral raise':'lateral raise',
+  'arnold press':'arnold press','incline bench press / smith':'incline bench press','pec deck':'pec deck',
+  'dumbbell curl':'dumbbell curl','cable row š':'cable row','cable row u':'cable row',
+  'abductor machine s/š':'abductor machine','dumbbell shrugs':'dumbbell shrugs','reverse fly':'reverse fly',
+  'upright row':'upright row','farmer walk':'farmers walk'
+};
+const isBw=name=>String(name).trim().toLowerCase()==='dips';
+const unitOf=name=>isBw(name)?'pon.':'kg';
+const repsWord=n=>(n%10===1&&n%100!==11)?'ponavljanje':'ponavljanja';
+const setStr=(name,s,sp)=>isBw(name)?String(s.reps):fmt(s.kg)+(sp?' × ':'×')+s.reps;
+const setsStr=(name,sets,sep,sp)=>sets.map(x=>setStr(name,x,sp)).join(sep)+(isBw(name)?' pon.':'');
+const refOf=name=>{const k=REF_MAP[String(name).trim().toLowerCase()];return k?REF[k]:null};
+/* value compared with the table: estimated 1RM; dips = added-weight 1RM at body weight; farmer walk = heaviest load */
+function exVal(name,kg,reps){
+  const k=String(name).trim().toLowerCase();
+  if(k==='farmer walk')return kg>0?kg:0;
+  if(k==='dips')return reps>0?reps:0;
+  return e1rm(kg,reps);
+}
+/* dips: sets before the last are ~85% effort, the last set is to failure -> estimated max reps */
+const DIPS_EFFORT=0.85;
+function exSession(name,sets){
+  if(isBw(name)){
+    const r=sets.map(s=>s.reps).filter(x=>x>0);
+    if(!r.length)return 0;
+    const last=r[r.length-1];
+    if(r.length===1)return last;
+    return Math.max(last,Math.round(Math.max(...r.slice(0,-1))/DIPS_EFFORT));
+  }
+  return Math.max(0,...sets.map(s=>exVal(name,s.kg,s.reps)));
+}
+const r1=v=>Math.round(v*10)/10;
+function levelOf(th,val){
+  const v=r1(val);let lv=-1;
+  th.forEach((t,i)=>{if(v>=t)lv=i});
+  const segs=th.map((t,i)=>{const lo=i?th[i-1]:0;return Math.max(0,Math.min(1,(v-lo)/(t-lo)))});
+  return {v,lv,segs,next:lv<4?th[lv+1]:null,gap:lv<4?r1(th[lv+1]-v):0,score:segs.reduce((a,b)=>a+b,0)};
+}
+function bestVals(){
+  const m=new Map();
+  state.workouts.forEach(w=>w.exercises.forEach(e=>{
+    const th=refOf(e.name);if(!th)return;
+    const k=key(e.name);const c=m.get(k)||{name:e.name,val:0,th};
+    c.val=Math.max(c.val,exSession(e.name,e.sets));
+    m.set(k,c);
+  }));
+  return [...m.values()];
+}
+const segHtml=L=>L.segs.map(f=>`<i><b style="width:${(f*100).toFixed(0)}%"></b></i>`).join('');
+function levelCard(name,val){
+  const th=refOf(name);if(!th||!(val>0))return '';
+  const L=levelOf(th,val),k=String(name).trim().toLowerCase(),bw=isBw(name);
+  const cap=bw?'procenjeni maksimum':k==='farmer walk'?'najveća težina po bučici':'procenjeni 1RM';
+  const nm=L.lv<0?'Ispod Beginner':LEVELS[L.lv];
+  const cols=th.map((t,i)=>`<div class="${i<=L.lv?'on':''}${i===L.lv?' cur':''}">${LV_SHORT[i]}<span>${t}</span></div>`).join('');
+  const target=L.lv<4?LEVELS[L.lv+1]:null;
+  const amt=n=>bw?`${fmt(n)} ${repsWord(n)}`:`${fmt(n)} kg`;
+  const tgt=L.lv<0?`Do Beginner još <b>${amt(r1(th[0]-L.v))}</b>`:target?`Do ${target} još <b>${amt(L.gap)}</b> (${L.next} ${unitOf(name)})`:'Elite nivo je dostignut';
+  return `<section class="card"><div class="row"><div class="grow"><div class="label">Nivo</div><div class="lvname">${nm}</div></div><div class="lvval"><b>${fmt(L.v)} ${unitOf(name)}</b><div class="hint" style="margin:0">${cap}</div></div></div>
+  <div class="lvbar">${segHtml(L)}</div><div class="lvcols">${cols}</div><div class="lvgap">${tgt}</div></section>`;
+}
+function overviewCard(){
+  const rows=bestVals().filter(c=>c.val>0).map(c=>({c,L:levelOf(c.th,c.val)})).sort((a,b)=>b.L.score-a.L.score);
+  if(!rows.length)return '';
+  return `<section class="card"><div class="label">Pregled nivoa</div><div>${rows.map(({c,L})=>`<button class="ovrow" data-do="pick-ex" data-name="${esc(c.name)}"><div class="grow"><div class="ovn">${esc(c.name)}</div><div class="ovsub">${L.lv<0?'Ispod Beginner':LEVELS[L.lv]} · ${fmt(L.v)} ${unitOf(c.name)}</div></div><div class="lvbar mini">${segHtml(L)}</div></button>`).join('')}</div></section>`;
+}
+const volOf=w=>w.exercises.reduce((a,e)=>a+e.sets.reduce((b,s)=>b+s.kg*s.reps,0),0);
+const dFmt=(t,o)=>new Date(t).toLocaleDateString('sr-Latn-RS',o);
+const clock=sec=>{sec=Math.max(0,Math.floor(sec));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(s).padStart(2,'0')};
+const sortW=()=>state.workouts.sort((a,b)=>b.start-a.start);
+const sortT=()=>state.templates.sort((a,b)=>(a.day||9)-(b.day||9)||a.name.localeCompare(b.name,'sr-Latn'));
+const clone=o=>JSON.parse(JSON.stringify(o));
+const persistActive=()=>LS.set('active',state.active);
+
+function allNames(){
+  const m=new Map();
+  BUILTIN.forEach(n=>m.set(key(n),n));
+  state.workouts.forEach(w=>w.exercises.forEach(e=>m.set(key(e.name),e.name)));
+  state.templates.forEach(t=>t.exercises.forEach(e=>m.set(key(e.name),e.name)));
+  return [...m.values()].sort((a,b)=>a.localeCompare(b,'sr-Latn'));
+}
+function lastSession(name){
+  const k=key(name);
+  for(const w of state.workouts){
+    const e=w.exercises.find(x=>key(x.name)===k);
+    if(e) return {date:w.start,sets:e.sets};
+  }
+  return null;
+}
+function makeEx(name,def){
+  def=def||{};
+  const last=lastSession(name);
+  const cnt=def.sets||(last?last.sets.length:3);
+  const sets=[];
+  for(let i=0;i<cnt;i++){
+    let kg='',reps=def.reps?String(def.reps):'';
+    if(last){
+      const ref=last.sets[i]||last.sets[last.sets.length-1];
+      kg=def.kg?String(def.kg).replace('.',','):(ref.kg?String(ref.kg).replace('.',','):'');
+      if(!reps)reps=String(ref.reps);
+    }else{
+      kg=def.kg?String(def.kg).replace('.',','):'';
+      if(!reps)reps='6';
+    }
+    sets.push({kg,reps,done:false});
+  }
+  return {id:uid(),name:String(name).trim(),note:def.note||'',sets};
+}
+function weekStats(){
+  const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));
+  const ws=state.workouts.filter(w=>w.start>=d.getTime());
+  return {n:ws.length,vol:ws.reduce((a,w)=>a+volOf(w),0)};
+}
+function countPRs(w){
+  let c=0;
+  w.exercises.forEach(e=>{
+    const k=key(e.name);let prev=0;
+    state.workouts.forEach(o=>o.exercises.forEach(x=>{if(key(x.name)===k)prev=Math.max(prev,exSession(x.name,x.sets))}));
+    const cur=exSession(e.name,e.sets);
+    if(prev>0&&cur>prev+0.01)c++;
+  });
+  return c;
+}
+
+/* ---------- toast, audio, wake lock ---------- */
+let tt;
+function toast(m){const el=$('#toast');el.textContent=m;el.hidden=false;clearTimeout(tt);tt=setTimeout(()=>{el.hidden=true},3400)}
+let actx;
+function audioInit(){try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume()}catch(e){}}
+function beep(){
+  try{
+    if(!actx)return;
+    [0,0.24].forEach(d=>{
+      const o=actx.createOscillator(),g=actx.createGain();
+      o.frequency.value=880;o.connect(g);g.connect(actx.destination);
+      const t=actx.currentTime+d;
+      g.gain.setValueAtTime(0.001,t);g.gain.exponentialRampToValueAtTime(0.25,t+0.02);g.gain.exponentialRampToValueAtTime(0.001,t+0.18);
+      o.start(t);o.stop(t+0.2);
+    });
+  }catch(e){}
+}
+let wl=null;
+async function wake(){try{if(state.active&&!wl&&navigator.wakeLock){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null})}}catch(e){}}
+function unwake(){try{if(wl){wl.release();wl=null}}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')wake()});
+
+/* ---------- remote storage (private per user) ---------- */
+let base=null;const chain={};const migrated={};
+function saveRemote(kind,obj){
+  if(!base)return;
+  const k=kind+obj.id;
+  chain[k]=(chain[k]||Promise.resolve()).then(()=>base.collection(kind).doc(obj.id).set(obj)).catch(e=>toast('Nije sačuvano u nalogu ('+((e&&e.code)||'greška')+'). Kopija je na ovom uređaju.'));
+}
+function delRemote(kind,id){
+  if(!base)return;
+  const k=kind+id;
+  chain[k]=(chain[k]||Promise.resolve()).then(()=>base.collection(kind).doc(id).delete()).catch(e=>toast('Brisanje nije stiglo do naloga ('+((e&&e.code)||'greška')+').'));
+}
+function onRemote(kind,snap){
+  if(snap.metadata.fromCache&&snap.empty)return;
+  const remote=snap.docs.map(d=>clone(d.data()));
+  if(snap.empty&&state[kind].length&&!migrated[kind]){
+    migrated[kind]=true;state[kind].forEach(x=>saveRemote(kind,x));return;
+  }
+  state[kind]=remote;
+  if(kind==='workouts')sortW();else sortT();
+  LS.set(kind,state[kind]);
+  rerenderSafe();
+}
+async function initDb(){
+  try{
+    if(!window.claude||!window.claude.use)return;
+    const user=await window.claude.use('user');
+    const db=await window.claude.use('db');
+    if(!user||!db)return;
+    const id=await user.id();
+    if(!id)return;
+    base=db.doc('data/users/'+id+'/app');
+    state.sync='live';renderSync();
+    const err=e=>{state.sync='local';base=null;renderSync();toast('Veza sa nalogom je prekinuta. Podaci ostaju na ovom uređaju.')};
+    base.collection('workouts').onSnapshot(s=>onRemote('workouts',s),err);
+    base.collection('templates').onSnapshot(s=>onRemote('templates',s),err);
+  }catch(e){}
+}
+function renderSync(){
+  const el=$('#sync');
+  if(!el)return;
+  el.className='sync'+(state.sync==='live'?' live':'');
+  el.querySelector('span').textContent=state.sync==='live'?'Sačuvano u nalogu':'Samo ovaj uređaj';
+}
+
+/* ---------- views ---------- */
+function settingsCard(){
+  const s=state.settings;
+  return `<section class="card"><div class="label">Pauza između serija</div>
+  <div class="chips">${[60,90,120,180].map(v=>`<button class="chip" data-do="set-rest" data-v="${v}" aria-pressed="${s.rest===v}">${v} s</button>`).join('')}
+  <button class="chip" data-do="set-auto" aria-pressed="${s.autoRest}">Auto-start: ${s.autoRest?'uključen':'isključen'}</button></div></section>`;
+}
+function viewIdle(){
+  const wk=weekStats();
+  let h=`<section class="card"><div class="label">Ova nedelja</div>
+  <div class="stats"><div><b>${wk.n}</b><span>${wk.n===1?'trening':'treninga'}</span></div><div><b>${fmtInt(wk.vol)}</b><span>kg ukupan volumen</span></div></div>
+  <button class="btn primary wide" data-do="start-empty">Počni prazan trening</button></section>`;
+  if(state.templates.length){
+    const today=new Date().getDay();
+    const ts=[...state.templates].sort((a,b)=>(b.day===today)-(a.day===today));
+    h+=`<div class="label">Tvoji šabloni</div>`+ts.map(t=>`<section class="card"><div class="row"><div class="grow">${t.day===today?'<div class="label" style="color:var(--accent)">Danas na planu</div>':''}<h2>${esc(t.name)}</h2><div class="hint">${t.exercises.length} ${t.exercises.length===1?'vežba':'vežbi'}</div></div><button class="btn primary sm" data-do="start-tpl" data-id="${t.id}">Počni</button></div></section>`).join('');
+  }else{
+    h+=`<div class="label">Gotovi planovi za početak</div>`+STARTERS.map((t,i)=>`<section class="card"><div class="row"><div class="grow"><h2>${esc(t.name)}</h2><div class="hint">${esc(t.exercises.map(e=>e.name).join(' · '))}</div></div><button class="btn primary sm" data-do="start-starter" data-i="${i}">Počni</button></div></section>`).join('');
+  }
+  return h+settingsCard();
+}
+function viewActive(){
+  const a=state.active;
+  let h=`<section class="card"><div class="row"><div class="label grow">Trening u toku</div><div class="elapsed" id="elapsed">0:00</div></div><input id="wName" class="title-in" value="${esc(a.name)}" aria-label="Naziv treninga" autocomplete="off"></section>`;
+  const topEx=a.exercises.findIndex(x=>!x.closed);
+  a.exercises.forEach((e,ei)=>{
+    const last=lastSession(e.name);
+    let hint=last?`Prošli put (${dFmt(last.date,{day:'numeric',month:'short'})}): ${setsStr(e.name,last.sets,' · ',false)}`:'Prvi put beležiš ovu vežbu';
+    if(e.note)hint+=' · Plan: '+e.note;
+    const cur=ei===topEx?e.sets.findIndex(x=>!x.done):-1;
+    if(e.closed){
+      const dn=e.sets.filter(s=>s.done);
+      h+=`<section class="card closed ex"><button class="hhead" data-do="open-ex" data-ei="${ei}" aria-expanded="false"><span class="tick${dn.length?'':' skip'}">${dn.length?CHECK:'–'}</span><div class="grow"><h2>${esc(e.name)}</h2><div class="hint">${dn.length?`${dn.length}/${e.sets.length} serije · ${esc(isBw(e.name)?dn.map(s=>s.reps).join(' · ')+' pon.':dn.map(s=>fmt(num(s.kg))+'×'+s.reps).join(' · '))}`:'Preskočeno'}</div></div>${CARET}</button></section>`;
+      return;
+    }
+    h+=`<section class="card ex"><div class="row"><div class="grow"><h2>${esc(e.name)}</h2><div class="hint">${esc(hint)}</div></div>
+    <button class="icon mv" data-do="mv-ex" data-ei="${ei}" data-d="-1" aria-label="Pomeri gore"${ei===0?' disabled':''}>${UP}</button><button class="icon mv" data-do="mv-ex" data-ei="${ei}" data-d="1" aria-label="Pomeri dole"${ei===a.exercises.length-1?' disabled':''}>${DOWN}</button><button class="icon" data-do="close-ex" data-ei="${ei}" aria-label="Zatvori vežbu">×</button></div>
+    <div class="sets"><div class="sh"><span>#</span><span>kg</span><span>pon.</span><span></span></div>
+    ${e.sets.map((s,si)=>`<div class="srow${s.done?' done':''}${si===cur?' cur':''}"><span class="sn">${si+1}</span>
+      <input class="num" inputmode="decimal" autocomplete="off" placeholder="0" data-f="kg" data-ei="${ei}" data-si="${si}" value="${esc(s.kg)}" aria-label="Kilaža, serija ${si+1}">
+      <input class="num" inputmode="numeric" autocomplete="off" placeholder="0" data-f="reps" data-ei="${ei}" data-si="${si}" value="${esc(s.reps)}" aria-label="Ponavljanja, serija ${si+1}">
+      <button class="chk" data-do="toggle-set" data-ei="${ei}" data-si="${si}" aria-pressed="${s.done}" aria-label="Serija ${si+1} završena">${CHECK}</button></div>`).join('')}
+    </div>
+    </section>`;
+  });
+  h+=`<section class="card"><div class="label">Dodaj vežbu</div><div class="row gap" style="flex-wrap:nowrap"><input id="exName" class="txt grow" list="exlist" placeholder="Npr. Čučanj" autocomplete="off"><button class="btn primary" data-do="add-ex">Dodaj</button></div></section>`;
+  h+=settingsCard();
+  h+=`<section class="card"><button class="btn primary wide" data-do="finish">Završi trening</button>
+  ${state.confirm==='discard'?`<div class="row gap"><span class="grow muted">Odbaciti ceo trening?</span><button class="btn sm danger" data-do="discard" data-confirm="1">Da, odbaci</button><button class="btn sm" data-do="noop">Ne</button></div>`:`<button class="btn sm ghost wide" data-do="discard" data-confirm="1">Odbaci trening</button>`}</section>`;
+  return h;
+}
+function viewTpl(){
+  if(state.draft)return viewTplEdit();
+  let h=`<div class="row"><h2 class="grow">Šabloni</h2><button class="btn primary sm" data-do="tpl-new">Novi šablon</button></div>`;
+  if(!state.templates.length){
+    h+=`<p class="muted">Šablon je spisak vežbi koji pokrećeš jednim dodirom. Dodaj neki od gotovih i prilagodi ga.</p>`;
+    h+=STARTERS.map((t,i)=>`<section class="card"><div class="row"><div class="grow"><h2>${esc(t.name)}</h2><div class="hint">${esc(t.exercises.map(e=>e.name+' '+e.sets+'×'+(e.reps||6)).join(' · '))}</div></div><button class="btn sm" data-do="add-starter" data-i="${i}">Dodaj</button></div></section>`).join('');
+  }else{
+    h+=state.templates.map(t=>`<section class="card"><div class="row"><h2 class="grow">${esc(t.name)}</h2><span class="muted">${t.exercises.length} ${t.exercises.length===1?'vežba':'vežbi'}</span></div>
+    <p class="exsum">${esc(t.exercises.map(e=>e.name+' '+e.sets+'×'+(e.reps||6)).join(' · '))}</p>
+    <div class="row gap"><button class="btn primary sm" data-do="start-tpl" data-id="${t.id}">Počni</button><button class="btn sm" data-do="tpl-edit" data-id="${t.id}">Izmeni</button></div></section>`).join('');
+  }
+  return h;
+}
+function viewTplEdit(){
+  const d=state.draft;
+  let h=`<div class="row"><h2 class="grow">${d.id?'Izmena šablona':'Novi šablon'}</h2></div>
+  <section class="card"><label class="label" for="tName">Naziv</label><input id="tName" class="txt" value="${esc(d.name)}" placeholder="Npr. Gornji deo tela" autocomplete="off"></section>`;
+  h+=`<section class="card"><div class="label">Vežbe</div>`;
+  if(!d.exercises.length)h+=`<p class="muted">Još nema vežbi. Dodaj prvu ispod.</p>`;
+  d.exercises.forEach((e,i)=>{
+    const kgv=e.kg===''||e.kg==null?'':String(e.kg).replace('.',',');
+    h+=`<div class="trow"><div class="row"><div class="grow"><b>${esc(e.name)}</b></div>
+    <button class="icon mv" data-do="tpl-mv" data-i="${i}" data-d="-1" aria-label="Pomeri gore"${i===0?' disabled':''}>${UP}</button><button class="icon mv" data-do="tpl-mv" data-i="${i}" data-d="1" aria-label="Pomeri dole"${i===d.exercises.length-1?' disabled':''}>${DOWN}</button>
+    <button class="icon" data-do="tpl-rm-ex" data-i="${i}" aria-label="Ukloni vežbu">×</button></div>
+    <div class="row tr2"><span class="muted">Težina</span><input class="txt kgin" inputmode="decimal" autocomplete="off" placeholder="0" data-tkg="${i}" value="${esc(kgv)}" aria-label="Težina za ${esc(e.name)}"><span class="muted">kg</span><span class="muted" style="margin-left:12px">Pon.</span><input class="txt kgin" inputmode="numeric" autocomplete="off" placeholder="6" data-trp="${i}" value="${esc(e.reps==null?'':e.reps)}" aria-label="Ponavljanja za ${esc(e.name)}"></div></div>`;
+  });
+  h+=`<div class="trow"><input id="exName" class="txt" placeholder="Naziv nove vežbe" autocomplete="off"><div class="row"><input id="exKg" class="txt kgin" inputmode="decimal" autocomplete="off" placeholder="kg" aria-label="Težina nove vežbe"><input id="exReps" class="txt kgin" inputmode="numeric" autocomplete="off" placeholder="pon." aria-label="Ponavljanja nove vežbe"><button class="btn primary grow" data-do="tpl-add-ex">Dodaj</button></div></div></section>`;
+  h+=`<section class="card"><button class="btn primary wide" data-do="tpl-save">Sačuvaj šablon</button><button class="btn wide" data-do="tpl-cancel">Odustani</button>`;
+  if(d.id)h+=state.confirm==='tpl-del'?`<div class="row gap"><span class="grow muted">Obrisati šablon?</span><button class="btn sm danger" data-do="tpl-delete" data-confirm="1">Da, obriši</button><button class="btn sm" data-do="noop">Ne</button></div>`:`<button class="btn sm ghost danger wide" data-do="tpl-delete" data-confirm="1">Obriši šablon</button>`;
+  return h+'</section>';
+}
+/* ---------- export / import ---------- */
+const OKID=/^[A-Za-z0-9_-]{1,64}$/;
+function dataCard(){
+  const im=state.imp;
+  let h=`<section class="card"><div class="label">Podaci</div><p class="hint" style="margin:4px 0 10px">Izvezi treninge i šablone u fajl: rezervna kopija ili prenos na drugi nalog.</p>
+  <div class="row gap"><button class="btn sm" data-do="data-export">Izvezi u fajl</button><label class="btn sm" for="impFile" style="display:inline-flex;align-items:center;justify-content:center">Uvezi iz fajla</label><input type="file" id="impFile" accept=".json,application/json" hidden></div>`;
+  if(im){
+    const have=new Set(state.workouts.map(x=>x.id));
+    const nw=im.w.filter(x=>!have.has(x.id)).length;
+    h+=`<div class="row gap" style="margin-top:10px"><span class="grow muted">Fajl: ${nw} novih treninga, ${im.t.length} šablona (postojeći šabloni se zamenjuju). Uvesti?</span><button class="btn sm primary" data-do="data-import">Uvezi</button><button class="btn sm" data-do="data-cancel">Ne</button></div>`;
+  }
+  return h+'</section>';
+}
+async function doExport(){
+  try{
+    const dl=await window.claude.use('downloads');
+    if(!dl){toast('Izvoz nije dostupan u ovom prikazu');return}
+    const data=JSON.stringify({app:'dnevnik-treninga',v:1,exported:new Date().toISOString(),workouts:state.workouts,templates:state.templates,settings:state.settings},null,1);
+    await dl.save({filename:'dnevnik-treninga-'+new Date().toISOString().slice(0,10)+'.json',data});
+    toast('Fajl je sačuvan');
+  }catch(e){if(!e||e.code!=='declined')toast('Izvoz nije uspeo'+(e&&e.code?' ('+e.code+')':''))}
+}
+function parseImport(txt){
+  let o;try{o=JSON.parse(txt)}catch(e){return null}
+  if(!o||o.app!=='dnevnik-treninga'||!Array.isArray(o.workouts)||!Array.isArray(o.templates))return null;
+  const w=[],t=[];
+  o.workouts.forEach(x=>{
+    if(!x||!OKID.test(String(x.id))||!Array.isArray(x.exercises))return;
+    const exs=x.exercises.filter(e=>e&&typeof e.name==='string'&&Array.isArray(e.sets)).map(e=>({name:e.name.slice(0,80),sets:e.sets.map(s=>({kg:Math.max(0,num(s?s.kg:0)),reps:Math.max(0,Math.round(num(s?s.reps:0)))}))}));
+    if(!exs.length)return;
+    w.push({id:String(x.id),name:String(x.name||'Trening').slice(0,80),start:+x.start||Date.now(),end:+x.end||0,exercises:exs});
+  });
+  o.templates.forEach(x=>{
+    if(!x||!OKID.test(String(x.id))||!Array.isArray(x.exercises))return;
+    const exs=x.exercises.filter(e=>e&&typeof e.name==='string').map(e=>({name:e.name.slice(0,80),sets:Math.max(1,Math.min(10,Math.round(num(e.sets))||3)),reps:Math.max(1,Math.min(99,Math.round(num(e.reps))||6)),kg:(typeof e.kg==='number'||typeof e.kg==='string')?e.kg:'',note:String(e.note||'').slice(0,80)}));
+    if(!exs.length)return;
+    const tpl={id:String(x.id),name:String(x.name||'Šablon').slice(0,80),exercises:exs,updated:Date.now()};
+    if(Number.isInteger(x.day)&&x.day>=0&&x.day<=6)tpl.day=x.day;
+    t.push(tpl);
+  });
+  return (w.length||t.length)?{w,t}:null;
+}
+function viewHist(){
+  if(!state.workouts.length)return `<h2>Istorija</h2><section class="card empty"><h2>Još nema treninga</h2><p class="muted">Kad završiš prvi trening, ovde će se videti datum, ukupan volumen i sve serije.</p><button class="btn primary" data-do="goto" data-tab="train">Počni trening</button></section>`+dataCard();
+  let h=`<h2>Istorija</h2>`;
+  state.workouts.forEach(w=>{
+    const open=state.openId===w.id;
+    const dur=w.end&&w.start?Math.max(1,Math.round((w.end-w.start)/60000)):0;
+    h+=`<section class="card"><button class="hhead" data-do="hist-toggle" data-id="${w.id}" aria-expanded="${open}"><div class="grow"><div class="label">${esc(dFmt(w.start,{weekday:'long',day:'numeric',month:'long'}))}</div><h2>${esc(w.name)}</h2><div class="hint">${w.exercises.length} ${w.exercises.length===1?'vežba':'vežbi'} · ${fmtInt(volOf(w))} kg${dur?' · '+dur+' min':''}</div></div>${CARET}</button>`;
+    if(open){
+      h+=`<div class="detail">${w.exercises.map(e=>`<div><h3>${esc(e.name)}</h3><div class="setline">${setsStr(e.name,e.sets,'  ·  ',true)}</div></div>`).join('')}
+      <div class="row gap"><button class="btn primary sm" data-do="hist-repeat" data-id="${w.id}">Ponovi trening</button>
+      ${state.confirm==='del:'+w.id?`<button class="btn sm danger" data-do="hist-del" data-id="${w.id}" data-confirm="1">Potvrdi brisanje</button><button class="btn sm" data-do="noop">Ne</button>`:`<button class="btn sm ghost danger" data-do="hist-del" data-id="${w.id}" data-confirm="1">Obriši</button>`}</div></div>`;
+    }
+    h+=`</section>`;
+  });
+  return h+dataCard();
+}
+function sessionsFor(name){
+  const k=key(name);const out=[];
+  [...state.workouts].sort((a,b)=>a.start-b.start).forEach(w=>{
+    const e=w.exercises.find(x=>key(x.name)===k);
+    if(!e)return;
+    out.push({t:w.start,sets:e.sets,top:Math.max(...e.sets.map(s=>s.kg)),e1:exSession(name,e.sets),vol:e.sets.reduce((a,s)=>a+s.kg*s.reps,0),reps:Math.max(...e.sets.map(s=>s.reps))});
+  });
+  return out;
+}
+function nice(x){const p=Math.pow(10,Math.floor(Math.log10(x)));const f=x/p;return (f<=1?1:f<=2?2:f<=5?5:10)*p}
+function chart(pts,int){
+  const W=520,H=220,L=46,R=18,T=26,B=30;
+  const min=Math.min(...pts.map(p=>p.v)),max=Math.max(...pts.map(p=>p.v));
+  const rng=max-min||Math.max(max*0.2,1);
+  const step=int?Math.max(1,nice(rng/3)):nice(rng/3);
+  let lo=Math.floor(min/step)*step,hi=Math.ceil(max/step)*step;
+  if(min===max){lo=min-step;hi=max+step}
+  if(lo<0)lo=0;if(hi<=lo)hi=lo+step;
+  const ticks=[];for(let v=lo,n=0;v<=hi+1e-9&&n<9;v+=step,n++)ticks.push(v);
+  const y=v=>T+(1-(v-lo)/(hi-lo))*(H-T-B);
+  const t0=pts[0].t,t1=pts[pts.length-1].t;
+  const x=t=>pts.length===1||t1===t0?L+(W-L-R)/2:L+(t-t0)/(t1-t0)*(W-L-R);
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Grafikon napretka po treningu">`;
+  ticks.forEach(v=>{s+=`<line class="grid" x1="${L}" x2="${W-R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text class="axis" x="${L-8}" y="${(y(v)+4).toFixed(1)}" text-anchor="end">${fmt(v)}</text>`});
+  s+=`<path class="line" d="${pts.map((p,i)=>(i?'L':'M')+x(p.t).toFixed(1)+' '+y(p.v).toFixed(1)).join(' ')}"/>`;
+  pts.forEach((p,i)=>{
+    const last=i===pts.length-1;
+    s+=`<circle class="${last?'dotlast':'dot'}" cx="${x(p.t).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="${last?6:3.5}"/>`;
+    if(last){
+      const py=y(p.v),ly=py-11<14?py+22:py-11,px=x(p.t);
+      s+=`<text class="dotlbl" x="${px.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${px>W-70?'end':'middle'}">${fmt(p.v)}</text>`;
+    }
+  });
+  const dl=t=>dFmt(t,{day:'numeric',month:'short'});
+  if(pts.length===1)s+=`<text class="axis" x="${x(t0)}" y="${H-8}" text-anchor="middle">${dl(t0)}</text>`;
+  else s+=`<text class="axis" x="${x(t0)}" y="${H-8}" text-anchor="start">${dl(t0)}</text><text class="axis" x="${x(t1)}" y="${H-8}" text-anchor="end">${dl(t1)}</text>`;
+  return s+'</svg>';
+}
+function swElapsed(){const s=state.sw;return s.base+(s.running?Date.now()-s.startedAt:0)}
+function swFmt(ms){
+  const cs=Math.floor(ms/10)%100,tot=Math.floor(ms/1000),s=tot%60,m=Math.floor(tot/60)%60,h=Math.floor(tot/3600);
+  return {main:(h?h+':'+String(m).padStart(2,'0'):m)+':'+String(s).padStart(2,'0'),cs:'.'+String(cs).padStart(2,'0')};
+}
+const swLap=ms=>{const f=swFmt(ms);return f.main+f.cs};
+function viewSw(){
+  const s=state.sw,el=swElapsed(),f=swFmt(el),laps=s.laps;
+  const durs=laps.map((t,i)=>t-(i?laps[i-1]:0));
+  const best=durs.length>2?Math.min(...durs):-1,worst=durs.length>2?Math.max(...durs):-1;
+  let h=`<h2>Štoperica</h2><section class="card"><div class="swtime" role="timer"><span id="swMain">${f.main}</span><small id="swCs">${f.cs}</small></div>
+  <div class="swbtns"><button class="btn primary big" data-do="sw-toggle">${s.running?'Pauza':el>0?'Nastavi':'Start'}</button><button class="btn" data-do="sw-lap"${s.running?'':' disabled'}>Krug</button><button class="btn ghost" data-do="sw-reset"${el>0?'':' disabled'}>Reset</button></div></section>`;
+  if(laps.length){
+    h+=`<section class="card"><div class="label">Krugovi</div><div>${durs.map((d,i)=>i).reverse().map(i=>`<div class="lap${durs[i]===best?' best':durs[i]===worst?' worst':''}"><span class="muted">Krug ${i+1}</span><span class="lt">${swLap(durs[i])}</span><span class="muted">${swLap(laps[i])}</span></div>`).join('')}</div></section>`;
+  }
+  return h;
+}
+setInterval(()=>{
+  if(state.tab!=='sw'||!state.sw.running)return;
+  const m=document.getElementById('swMain'),c=document.getElementById('swCs');
+  if(m&&c){const f=swFmt(swElapsed());m.textContent=f.main;c.textContent=f.cs}
+},50);
+function viewProg(){
+  const counts=new Map();
+  state.workouts.forEach(w=>w.exercises.forEach(e=>{const k=key(e.name);const c=counts.get(k)||{name:e.name,n:0};c.n++;counts.set(k,c)}));
+  if(!counts.size)return `<h2>Napredak</h2><section class="card empty"><h2>Grafikon čeka podatke</h2><p class="muted">Posle prvog sačuvanog treninga ovde biraš vežbu i vidiš kako ti rastu težina, procenjeni 1RM i volumen.</p><button class="btn primary" data-do="goto" data-tab="train">Počni trening</button></section>`;
+  const names=[...counts.values()].sort((a,b)=>b.n-a.n||a.name.localeCompare(b.name,'sr-Latn'));
+  if(!state.progEx||!counts.has(key(state.progEx)))state.progEx=names[0].name;
+  const ses=sessionsFor(state.progEx);
+  const allBw=ses.every(s=>s.top===0);
+  const bwEx=isBw(state.progEx);
+  const metric=bwEx?'e1':(state.progMetric||(allBw?'reps':'top'));
+  const M={top:['Težina','top','kg'],e1:['Procenjeni 1RM','e1','kg'],vol:['Volumen','vol','kg'],reps:['Ponavljanja','reps','pon']};
+  const pts=ses.map(s=>({t:s.t,v:s[M[metric][1]]})).filter(p=>p.v>0||metric==='reps');
+  let h=`<h2>Napredak</h2><section class="card"><label class="label" for="progSel">Vežba</label><select id="progSel">${names.map(n=>`<option value="${esc(n.name)}"${key(n.name)===key(state.progEx)?' selected':''}>${esc(n.name)} (${n.n})</option>`).join('')}</select>
+  ${bwEx?'':`<div class="chips">${Object.keys(M).map(k=>`<button class="chip" data-do="metric" data-m="${k}" aria-pressed="${k===metric}">${M[k][0]}</button>`).join('')}</div>`}
+  ${pts.length?chart(pts,metric==='reps'||bwEx):'<p class="muted">Nema podataka za ovu meru.</p>'}
+  <div class="muted" style="font-size:13px">${bwEx?'Procenjeni maksimum ponavljanja, po treningu':`${M[metric][0]} po treningu, u ${M[metric][2]}`}${pts.length===1?'. Za liniju su potrebna bar dva treninga.':'.'}</div></section>`;
+  h+=levelCard(state.progEx,Math.max(0,...ses.map(x=>x.e1)));
+  let bestW=null,bestE=null;
+  ses.forEach(s=>s.sets.forEach(x=>{
+    if(x.kg>0&&(!bestW||x.kg>bestW.kg||(x.kg===bestW.kg&&x.reps>bestW.reps)))bestW={kg:x.kg,reps:x.reps,t:s.t};
+    const e=exVal(state.progEx,x.kg,x.reps);if(e>0&&(!bestE||e>bestE.v))bestE={v:e,t:s.t};
+  }));
+  h+=`<section class="card"><div class="label">Rekordi</div>`;
+  if(bwEx){
+    let bestR=null,bestM=null;
+    ses.forEach(x=>{
+      if(x.reps>0&&(!bestR||x.reps>bestR.v))bestR={v:x.reps,t:x.t};
+      if(x.e1>0&&(!bestM||x.e1>bestM.v))bestM={v:x.e1,t:x.t};
+    });
+    const dt=t=>esc(dFmt(t,{day:'numeric',month:'short',year:'numeric'}));
+    if(bestM)h+=`<div class="kv"><span>Procenjeni maksimum</span><b>${bestM.v} <span class="muted" style="font-weight:400">· ${dt(bestM.t)}</span></b></div>`;
+    if(bestR)h+=`<div class="kv"><span>Najviše u jednoj seriji</span><b>${bestR.v} <span class="muted" style="font-weight:400">· ${dt(bestR.t)}</span></b></div>`;
+    h+=`<div class="kv"><span>Treninga</span><b>${ses.length}</b></div></section>`;
+  }else{
+  if(bestW)h+=`<div class="kv"><span>Najteži set</span><b>${fmt(bestW.kg)} kg × ${bestW.reps} <span class="muted" style="font-weight:400">· ${esc(dFmt(bestW.t,{day:'numeric',month:'short',year:'numeric'}))}</span></b></div>`;
+  if(bestE)h+=`<div class="kv"><span>Procenjeni 1RM</span><b>${fmt(bestE.v)} kg <span class="muted" style="font-weight:400">· ${esc(dFmt(bestE.t,{day:'numeric',month:'short',year:'numeric'}))}</span></b></div>`;
+  h+=`<div class="kv"><span>Treninga</span><b>${ses.length}</b></div><div class="kv"><span>Ukupan volumen</span><b>${fmtInt(ses.reduce((a,s)=>a+s.vol,0))} kg</b></div></section>`;
+  }
+  h+=`<section class="card"><div class="label">Poslednji treninzi</div>${[...ses].reverse().slice(0,5).map(s=>`<div><div class="label" style="margin-bottom:2px">${esc(dFmt(s.t,{weekday:'short',day:'numeric',month:'short'}))}</div><div class="setline">${setsStr(state.progEx,s.sets,'  ·  ',true)}</div></div>`).join('')}</section>`;
+  h+=overviewCard();
+  return h;
+}
+
+/* ---------- render ---------- */
+function renderNav(){
+  $('#nav').innerHTML=`<div class="tabs">${TABS.map(t=>`<button class="tab" data-do="goto" data-tab="${t[0]}"${state.tab===t[0]?' aria-current="page"':''}><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[t[0]]}</svg>${t[1]}</button>`).join('')}</div>`;
+}
+function render(){
+  renderNav();
+  $('#exlist').innerHTML=allNames().map(n=>`<option value="${esc(n)}">`).join('');
+  let v;
+  if(state.tab==='train')v=state.active?viewActive():viewIdle();
+  else if(state.tab==='tpl')v=viewTpl();
+  else if(state.tab==='hist')v=viewHist();
+  else if(state.tab==='sw')v=viewSw();
+  else v=viewProg();
+  app.innerHTML=v;
+  renderRest();renderSync();tick();
+}
+function rerenderSafe(){
+  const a=document.activeElement;
+  if(a&&a.matches&&a.matches('input,select'))return;
+  render();
+}
+
+/* ---------- rest timer ---------- */
+function startRest(sec){state.rest={end:Date.now()+sec*1000,total:sec,done:false,doneAt:0};renderRest()}
+function renderRest(){
+  const el=$('#rest');
+  if(!state.rest){el.hidden=true;el.innerHTML='';el.classList.remove('over');return}
+  el.hidden=false;el.classList.toggle('over',!!state.rest.done);el.classList.toggle('warn',!!state.rest.warn&&!state.rest.done);
+  el.innerHTML=`<div class="rest-in"><div class="row"><div class="grow"><div class="label">${state.rest.done?'Pauza prošla':'Pauza'}</div><div class="rtime" id="restTime">0:00</div></div>
+  <button class="btn sm primary" data-do="rest-skip">Preskoči</button></div>
+  <div class="row"><button class="btn sm grow" data-do="rest-add" data-d="-15">−15 s</button><button class="btn sm grow" data-do="rest-add" data-d="15">+15 s</button></div>
+  <div class="rbar"><i id="restFill"></i></div></div>`;
+  tick();
+}
+function tick(){
+  const now=Date.now();
+  const el=document.getElementById('elapsed');
+  if(el&&state.active)el.textContent=clock((now-state.active.startedAt)/1000);
+  const r=state.rest;
+  if(!r)return;
+  const rem=r.end-now;
+  const over=rem<=0;
+  const t=document.getElementById('restTime');
+  if(t)t.textContent=over?'\u2212'+clock(Math.floor(-rem/1000)):clock(Math.ceil(rem/1000));
+  const f=document.getElementById('restFill');
+  if(f)f.style.width=(over?100:Math.max(0,Math.min(100,(1-rem/(r.total*1000))*100)))+'%';
+  const warn=!over&&rem<=10000;
+  if(warn!==!!r.warn){
+    r.warn=warn;
+    const box=document.getElementById('rest');if(box)box.classList.toggle('warn',warn);
+    if(warn){try{if(navigator.vibrate)navigator.vibrate(120)}catch(e){}}
+  }
+  if(over&&!r.done){r.done=true;r.warn=false;try{if(navigator.vibrate)navigator.vibrate([200,100,200])}catch(e){}beep();renderRest()}
+}
+setInterval(tick,500);
+
+/* ---------- actions ---------- */
+function startWorkout(name,exs){
+  if(state.active){toast('Već imaš trening u toku');state.tab='train';render();return}
+  state.active={id:uid(),name:name||'Trening',startedAt:Date.now(),exercises:exs.map(e=>makeEx(e.name,e))};
+  persistActive();state.tab='train';state.confirm=null;render();wake();window.scrollTo(0,0);
+}
+function closeEx(i){
+  const a=state.active;
+  const ex=a.exercises.splice(i,1)[0];
+  ex.closed=true;
+  a.exercises.push(ex);
+}
+function addExFromInput(){
+  const inp=$('#exName');const name=inp?inp.value.trim():'';
+  return name;
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-do]');
+  if(!b)return;
+  const act=b.dataset.do,d=b.dataset;
+  if(!d.confirm)state.confirm=null;
+  const a=state.active;
+  switch(act){
+    case 'noop':render();break;
+    case 'goto':state.tab=d.tab;if(d.tab!=='tpl')state.draft=null;render();window.scrollTo(0,0);break;
+    case 'set-rest':state.settings.rest=+d.v;LS.set('settings',state.settings);render();break;
+    case 'set-auto':state.settings.autoRest=!state.settings.autoRest;LS.set('settings',state.settings);render();break;
+    case 'start-empty':startWorkout('Trening',[]);break;
+    case 'start-starter':{const t=STARTERS[+d.i];startWorkout(t.name,t.exercises);break}
+    case 'start-tpl':{const t=state.templates.find(x=>x.id===d.id);if(t)startWorkout(t.name,t.exercises);break}
+    case 'close-ex':closeEx(+d.ei);persistActive();render();break;
+    case 'open-ex':a.exercises[+d.ei].closed=false;persistActive();render();break;
+    case 'mv-ex':{
+      const i=+d.ei,j=i+(+d.d);
+      if(j>=0&&j<a.exercises.length){const t=a.exercises[i];a.exercises[i]=a.exercises[j];a.exercises[j]=t;persistActive();render()}
+      break;
+    }
+    case 'toggle-set':{
+      const s=a.exercises[+d.ei].sets[+d.si];
+      if(!s.done){
+        if(num(s.reps)<=0){toast('Upiši broj ponavljanja pre nego što označiš seriju');break}
+        s.done=true;audioInit();
+        if(a.exercises[+d.ei].sets.every(x=>x.done))closeEx(+d.ei);
+        if(state.settings.autoRest)startRest(state.settings.rest);
+      }else s.done=false;
+      persistActive();render();break;
+    }
+    case 'add-ex':{const n=addExFromInput();if(!n)break;a.exercises.push(makeEx(n));persistActive();render();break}
+    case 'finish':{
+      const exs=[];
+      a.exercises.forEach(x=>{
+        const sets=x.sets.filter(s=>s.done).map(s=>({kg:num(s.kg),reps:Math.round(num(s.reps))}));
+        if(sets.length)exs.push({name:x.name,sets});
+      });
+      if(!exs.length){toast('Označi bar jednu seriju kao završenu');break}
+      const w={id:uid(),name:(a.name||'').trim()||'Trening',start:a.startedAt,end:Date.now(),exercises:exs};
+      const prs=countPRs(w);
+      state.workouts.push(w);sortW();LS.set('workouts',state.workouts);saveRemote('workouts',w);
+      state.active=null;persistActive();state.rest=null;state.tab='hist';state.openId=w.id;
+      unwake();render();window.scrollTo(0,0);
+      toast(prs?`Sačuvano · ${prs} ${prs===1?'novi rekord':prs<5?'nova rekorda':'novih rekorda'}`:'Trening sačuvan');
+      break;
+    }
+    case 'discard':
+      if(state.confirm==='discard'){state.confirm=null;state.active=null;persistActive();state.rest=null;unwake();render();}
+      else{state.confirm='discard';render();}
+      break;
+    case 'rest-add':{
+      const r=state.rest;if(!r)break;const dd=+d.d;
+      if(r.done){if(dd>0)startRest(dd)}
+      else{r.end+=dd*1000;r.total=Math.max(1,r.total+dd);tick()}
+      break;
+    }
+    case 'rest-skip':state.rest=null;renderRest();break;
+
+    case 'tpl-new':state.draft={id:null,name:'',exercises:[]};render();window.scrollTo(0,0);break;
+    case 'tpl-edit':{const t=state.templates.find(x=>x.id===d.id);if(t){state.draft=clone(t);render();window.scrollTo(0,0)}break}
+    case 'add-starter':{const s=STARTERS[+d.i];const t={id:s.id,day:s.day,name:s.name,exercises:clone(s.exercises),updated:Date.now()};state.templates.push(t);sortT();LS.set('templates',state.templates);saveRemote('templates',t);render();toast('Šablon "'+s.name+'" je dodat');break}
+    case 'tpl-add-ex':{const n=addExFromInput();if(!n)break;const kgEl=$('#exKg'),rpEl=$('#exReps');const rr=Math.round(num(rpEl?rpEl.value:''));state.draft.exercises.push({name:n,sets:3,reps:rr>0?Math.min(rr,99):6,kg:kgEl?kgEl.value.trim():'',note:''});render();const i=$('#exName');if(i)i.focus();break}
+    case 'tpl-rm-ex':state.draft.exercises.splice(+d.i,1);render();break;
+    case 'tpl-sets':{const ex=state.draft.exercises[+d.i];ex.sets=Math.max(1,Math.min(10,ex.sets+(+d.d)));render();break}
+    case 'tpl-mv':{const ex=state.draft.exercises,i=+d.i,j=i+(+d.d);if(j>=0&&j<ex.length){const t=ex[i];ex[i]=ex[j];ex[j]=t;render()}break}
+    case 'tpl-cancel':state.draft=null;render();break;
+    case 'tpl-save':{
+      const dr=state.draft;
+      if(!dr.exercises.length){toast('Dodaj bar jednu vežbu');break}
+      dr.exercises.forEach(x=>{const r=Math.round(num(x.reps));x.reps=r>0?Math.min(r,99):6});
+      const t={id:dr.id||uid(),day:dr.day,name:(dr.name||'').trim()||'Šablon',exercises:dr.exercises,updated:Date.now()};
+      const i=state.templates.findIndex(x=>x.id===t.id);
+      if(i>=0)state.templates[i]=t;else state.templates.push(t);
+      sortT();LS.set('templates',state.templates);saveRemote('templates',t);
+      state.draft=null;render();toast('Šablon sačuvan');break;
+    }
+    case 'tpl-delete':
+      if(state.confirm==='tpl-del'){
+        const id=state.draft.id;state.templates=state.templates.filter(x=>x.id!==id);LS.set('templates',state.templates);delRemote('templates',id);
+        state.confirm=null;state.draft=null;render();
+      }else{state.confirm='tpl-del';render();}
+      break;
+
+    case 'hist-toggle':state.openId=state.openId===d.id?null:d.id;render();break;
+    case 'hist-repeat':{const w=state.workouts.find(x=>x.id===d.id);if(w)startWorkout(w.name,w.exercises.map(x=>({name:x.name,sets:x.sets.length})));break}
+    case 'hist-del':
+      if(state.confirm==='del:'+d.id){
+        state.workouts=state.workouts.filter(x=>x.id!==d.id);LS.set('workouts',state.workouts);delRemote('workouts',d.id);
+        state.confirm=null;state.openId=null;render();
+      }else{state.confirm='del:'+d.id;render();}
+      break;
+
+    case 'data-export':doExport();break;
+    case 'data-cancel':state.imp=null;render();break;
+    case 'data-import':{
+      const im=state.imp;if(!im)break;
+      const have=new Set(state.workouts.map(x=>x.id));let nw=0;
+      im.w.forEach(x=>{if(!have.has(x.id)){state.workouts.push(x);saveRemote('workouts',x);nw++}});
+      im.t.forEach(x=>{const i=state.templates.findIndex(y=>y.id===x.id);if(i>=0)state.templates[i]=x;else state.templates.push(x);saveRemote('templates',x)});
+      sortW();sortT();LS.set('workouts',state.workouts);LS.set('templates',state.templates);
+      state.imp=null;render();toast('Uvezeno: '+nw+' treninga, '+im.t.length+' šablona');break;
+    }
+    case 'metric':state.progMetric=d.m;render();break;
+    case 'pick-ex':state.progEx=d.name;render();window.scrollTo(0,0);break;
+
+    case 'sw-toggle':{
+      const s=state.sw;
+      if(s.running){s.base+=Date.now()-s.startedAt;s.running=false}
+      else{s.startedAt=Date.now();s.running=true}
+      LS.set('sw',s);render();break;
+    }
+    case 'sw-lap':{const s=state.sw;if(s.running){s.laps.push(swElapsed());LS.set('sw',s);render()}break}
+    case 'sw-reset':state.sw={running:false,startedAt:0,base:0,laps:[]};LS.set('sw',state.sw);render();break;
+  }
+});
+app.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.dataset&&t.dataset.f&&state.active){
+    const s=state.active.exercises[+t.dataset.ei].sets[+t.dataset.si];
+    s[t.dataset.f]=t.value;persistActive();
+  }else if(t.id==='wName'&&state.active){state.active.name=t.value;persistActive()}
+  else if(t.id==='tName'&&state.draft){state.draft.name=t.value}
+  else if(t.dataset&&t.dataset.tkg!==undefined&&state.draft){state.draft.exercises[+t.dataset.tkg].kg=t.value}
+  else if(t.dataset&&t.dataset.trp!==undefined&&state.draft){state.draft.exercises[+t.dataset.trp].reps=t.value}
+});
+app.addEventListener('change',async e=>{
+  if(e.target.id==='impFile'){
+    const f=e.target.files&&e.target.files[0];if(!f)return;
+    let r=null;
+    try{if(f.size<5e6)r=parseImport(await f.text())}catch(x){}
+    if(!r){toast('Fajl nije prepoznat. Uvezi fajl izvezen iz ove aplikacije.');e.target.value='';return}
+    state.imp=r;render();return;
+  }
+  if(e.target.id==='progSel'){state.progEx=e.target.value;render()}
+});
+app.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&(e.target.id==='exName'||e.target.id==='exKg'||e.target.id==='exReps')){
+    e.preventDefault();
+    const btn=e.target.closest('.card').querySelector('[data-do$="add-ex"]');
+    if(btn)btn.click();
+  }
+});
+
+/* ---------- boot ---------- */
+if(!LS.get('seeded',false)){
+  if(!state.templates.length){
+    state.templates=STARTERS.map(s=>({id:s.id,day:s.day,name:s.name,exercises:clone(s.exercises),updated:Date.now()}));
+    LS.set('templates',state.templates);
+  }
+  LS.set('seeded',true);
+}
+sortW();sortT();
+render();wake();initDb();
+})();
+</script>
