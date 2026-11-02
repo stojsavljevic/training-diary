@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "training-diary",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-23",
+  "workers_dev": true,
+  "preview_urls": true,
+  "routes": [{ "pattern": "training.netwatchly.com", "custom_domain": true }],
+  // only index.html and _headers are published as static files (see .assetsignore)
+  "assets": { "directory": ".", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "training-diary", "database_id": "325099c9-d313-44c3-b03a-c7d575ec7e0d" }
+  ],
+  // Cloudflare Access (Worker Access on this Worker); both values are public, the JWT signature is what matters
+  "vars": {
+    "ACCESS_TEAM_DOMAIN": "https://rough-tree-2e60.cloudflareaccess.com",
+    "ACCESS_AUD": "5cbfae584f81136abbb703c028ddfe8bd1ab0d9cf14dc2856e126a7295ef109e"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": { "enabled": true, "head_sampling_rate": 1, "persist": true, "invocation_logs": true }
+  }
+}

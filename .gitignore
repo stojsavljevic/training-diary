@@ -2,3 +2,8 @@
 dnevnik-treninga-*.json
 *.json
 !package.json
+
+# Cloudflare lokalni razvoj
+.dev.vars
+.wrangler/
+node_modules/

@@ -50,6 +50,7 @@ p{margin:0}
 .sync{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;text-align:right}
 .sync i{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
 .sync.live i{background:var(--good)}
+.sync.warn i{background:var(--warn)}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--rc);box-shadow:0 1px 2px rgba(20,40,30,.07);padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
 .row{display:flex;align-items:center;gap:10px;min-width:0}
 .row.gap{gap:8px;flex-wrap:wrap}
@@ -198,6 +199,7 @@ nav#nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-
 </style>
 
 <div class="wrap">
+  <header class="top"><h1>Dnevnik treninga</h1><div id="sync" class="sync" role="status"><i></i><span></span></div></header>
   <main id="app"></main>
 </div>
 <div id="rest" hidden></div>
@@ -428,14 +430,93 @@ async function wake(){try{if(state.active&&!wl&&navigator.wakeLock){wl=await nav
 function unwake(){try{if(wl){wl.release();wl=null}}catch(e){}}
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')wake()});
 
-/* ---------- remote storage (private per user) ---------- */
+/* ---------- server storage (own site: Cloudflare Worker /api + D1, behind Access) ---------- */
+/* Every local change is queued in `pend` (kept in localStorage) until the server confirms it,
+   so nothing is lost offline. pull() merges: pending local changes win, otherwise the newer `updated` wins;
+   items only this device has are uploaded, items deleted elsewhere (tombstones) are dropped. */
+const API=/(^|\.)netwatchly\.com$|\.workers\.dev$|^localhost$|^127\.0\.0\.1$/.test(location.hostname);
+let pend=LS.get('pending',{}),seq=Date.now(),flushing=false;
+const pendN=()=>Object.keys(pend).length;
+function queue(kind,id,op){pend[kind+'/'+id]={op,v:++seq};LS.set('pending',pend);flush()}
+const saveSettings=()=>{state.settings.updated=Date.now();LS.set('settings',state.settings);if(API)queue('settings','main','put')};
+async function api(path,opt){
+  const r=await fetch('/api/'+path,Object.assign({credentials:'same-origin',redirect:'manual',cache:'no-store'},opt));
+  if(r.type==='opaqueredirect'||r.status===401||r.status===403){const e=new Error('auth');e.code='auth';throw e}
+  if(!r.ok){const e=new Error('http');e.code='http '+r.status;throw e}
+  return r.json();
+}
+function syncErr(e){state.sync=e&&e.code==='auth'?'auth':'local';renderSync()}
+async function flush(){
+  if(!API||flushing)return;
+  flushing=true;
+  try{
+    let k;
+    while((k=Object.keys(pend)[0])){
+      const p=pend[k],[kind,id]=k.split('/');
+      let body;
+      if(p.op==='put'){
+        const o=kind==='settings'?state.settings:state[kind].find(x=>x.id===id);
+        if(!o){delete pend[k];LS.set('pending',pend);continue}
+        body=JSON.stringify(o);
+      }
+      await api(k,p.op==='put'?{method:'PUT',body,headers:{'content-type':'application/json'}}:{method:'DELETE'});
+      if(pend[k]&&pend[k].v===p.v){delete pend[k];LS.set('pending',pend)}
+    }
+    state.sync='live';renderSync();
+  }catch(e){syncErr(e)}
+  finally{flushing=false}
+}
+const upd=x=>+(x&&x.updated)||0;
+async function pull(){
+  if(!API)return;
+  try{
+    await flush();
+    const d=await api('sync');
+    const before=JSON.stringify([state.workouts,state.templates,state.settings]);
+    ['workouts','templates'].forEach(kind=>{
+      const gone=new Set(d.deleted[kind]),srv=new Map(d[kind].map(x=>[x.id,x])),out=[];
+      state[kind].forEach(x=>{
+        const p=pend[kind+'/'+x.id],s=srv.get(x.id);srv.delete(x.id);
+        if(p){if(p.op==='put')out.push(x);return}
+        if(s){
+          if(upd(x)>upd(s)){out.push(x);pend[kind+'/'+x.id]={op:'put',v:++seq}}else out.push(s);
+          return;
+        }
+        if(gone.has(x.id))return;
+        /* untouched starter templates (updated 0) go up only to an empty account, so they never undo a deletion */
+        if(kind==='templates'&&!upd(x)&&(d.templates.length||d.deleted.templates.length))return;
+        out.push(x);pend[kind+'/'+x.id]={op:'put',v:++seq};
+      });
+      srv.forEach((x,id)=>{if(!pend[kind+'/'+id])out.push(x)});
+      state[kind]=out;
+    });
+    if(!pend['settings/main']){
+      if(d.settings&&upd(d.settings)>=upd(state.settings))state.settings=Object.assign({rest:90,autoRest:true},d.settings);
+      else pend['settings/main']={op:'put',v:++seq};
+    }
+    sortW();sortT();
+    LS.set('workouts',state.workouts);LS.set('templates',state.templates);LS.set('settings',state.settings);LS.set('pending',pend);
+    state.sync='live';
+    if(JSON.stringify([state.workouts,state.templates,state.settings])!==before)rerenderSafe();else renderSync();
+    if(pendN())flush();
+  }catch(e){syncErr(e)}
+}
+if(API){
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')pull()});
+  window.addEventListener('online',pull);
+  setInterval(()=>{if(document.visibilityState==='visible')pull()},60000);
+}
+
+/* ---------- remote storage in a Claude artifact (private per user) ---------- */
 let base=null;const chain={};const migrated={};
 function saveRemote(kind,obj){
+  if(API){queue(kind,obj.id,'put');return}
   if(!base)return;
   const k=kind+obj.id;
   chain[k]=(chain[k]||Promise.resolve()).then(()=>base.collection(kind).doc(obj.id).set(obj)).catch(e=>toast('Nije sačuvano u nalogu ('+((e&&e.code)||'greška')+'). Kopija je na ovom uređaju.'));
 }
 function delRemote(kind,id){
+  if(API){queue(kind,id,'del');return}
   if(!base)return;
   const k=kind+id;
   chain[k]=(chain[k]||Promise.resolve()).then(()=>base.collection(kind).doc(id).delete()).catch(e=>toast('Brisanje nije stiglo do naloga ('+((e&&e.code)||'greška')+').'));
@@ -469,8 +550,11 @@ async function initDb(){
 function renderSync(){
   const el=$('#sync');
   if(!el)return;
-  el.className='sync'+(state.sync==='live'?' live':'');
-  el.querySelector('span').textContent=state.sync==='live'?'Sačuvano u nalogu':'Samo ovaj uređaj';
+  const n=API?pendN():0;
+  el.className='sync'+(state.sync==='live'&&!n?' live':state.sync==='auth'||n?' warn':'');
+  el.querySelector('span').textContent=state.sync==='auth'?'Prijava je istekla, osveži stranicu'
+    :n?`Čeka slanje (${n})`
+    :state.sync==='live'?(API?'Sačuvano na serveru':'Sačuvano u nalogu'):'Samo ovaj uređaj';
 }
 
 /* ---------- views ---------- */
@@ -570,10 +654,19 @@ function dataCard(){
 }
 async function doExport(){
   try{
+    const data=JSON.stringify({app:'dnevnik-treninga',v:1,exported:new Date().toISOString(),workouts:state.workouts,templates:state.templates,settings:state.settings},null,1);
+    const filename='dnevnik-treninga-'+new Date().toISOString().slice(0,10)+'.json';
+    if(!(window.claude&&window.claude.use)){
+      /* plain web page: regular browser download */
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.download=filename;
+      document.body.appendChild(a);a.click();
+      setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
+      return;
+    }
     const dl=await window.claude.use('downloads');
     if(!dl){toast('Izvoz nije dostupan u ovom prikazu');return}
-    const data=JSON.stringify({app:'dnevnik-treninga',v:1,exported:new Date().toISOString(),workouts:state.workouts,templates:state.templates,settings:state.settings},null,1);
-    await dl.save({filename:'dnevnik-treninga-'+new Date().toISOString().slice(0,10)+'.json',data});
+    await dl.save({filename,data});
     toast('Fajl je sačuvan');
   }catch(e){if(!e||e.code!=='declined')toast('Izvoz nije uspeo'+(e&&e.code?' ('+e.code+')':''))}
 }
@@ -797,8 +890,8 @@ document.addEventListener('click',e=>{
   switch(act){
     case 'noop':render();break;
     case 'goto':state.tab=d.tab;if(d.tab!=='tpl')state.draft=null;render();window.scrollTo(0,0);break;
-    case 'set-rest':state.settings.rest=+d.v;LS.set('settings',state.settings);render();break;
-    case 'set-auto':state.settings.autoRest=!state.settings.autoRest;LS.set('settings',state.settings);render();break;
+    case 'set-rest':state.settings.rest=+d.v;saveSettings();render();break;
+    case 'set-auto':state.settings.autoRest=!state.settings.autoRest;saveSettings();render();break;
     case 'start-empty':startWorkout('Trening',[]);break;
     case 'start-starter':{const t=STARTERS[+d.i];startWorkout(t.name,t.exercises);break}
     case 'start-tpl':{const t=state.templates.find(x=>x.id===d.id);if(t)startWorkout(t.name,t.exercises);break}
@@ -935,12 +1028,12 @@ app.addEventListener('keydown',e=>{
 /* ---------- boot ---------- */
 if(!LS.get('seeded',false)){
   if(!state.templates.length){
-    state.templates=STARTERS.map(s=>({id:s.id,day:s.day,name:s.name,exercises:clone(s.exercises),updated:Date.now()}));
+    state.templates=STARTERS.map(s=>({id:s.id,day:s.day,name:s.name,exercises:clone(s.exercises),updated:0}));
     LS.set('templates',state.templates);
   }
   LS.set('seeded',true);
 }
 sortW();sortT();
-render();wake();initDb();
+render();wake();if(API)pull();else initDb();
 })();
 </script>

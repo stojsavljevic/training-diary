@@ -29,7 +29,29 @@ Aplikacija koristi tri Claude „capabilities" i bez njih ne čuva podatke: `db`
 
 Uvoz dodaje samo treninge kojih još nema, a šablone sa istim ID-jem zamenjuje.
 
-Aplikacija se može otvoriti i kao obična stranica u pregledaču bez Claude naloga, ali tada se podaci čuvaju samo u `localStorage` tog uređaja.
+## Sopstveni sajt na Cloudflare-u (training.netwatchly.com)
+
+Sajt je Cloudflare Worker (`src/worker.js`, podešavanja u `wrangler.jsonc`). Worker služi `index.html` i API `/api/`, koji čuva podatke u D1 bazi `training-diary`, pa su treninzi, šabloni i podešavanja isti na svim uređajima.
+
+Sajt štiti Cloudflare Access (kartica **Access** na Workeru). API prihvata samo zahteve sa važećim Access tokenom za tu aplikaciju (`ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` u `wrangler.jsonc`), a podaci se vode po emailu iz tokena. Ako se Access isključi, API odbija sve zahteve.
+
+Promene koje nisu stigle do servera čekaju u pregledaču i šalju se čim ima veze (gore desno piše „Čeka slanje“). Podaci koji postoje samo na nekom uređaju, na primer treninzi uneti pre ove verzije, šalju se na server pri prvom otvaranju.
+
+Objava:
+
+```bash
+npx wrangler deploy
+```
+
+Na sajt idu samo `index.html` i `_headers` (vidi `.assetsignore`).
+
+Lokalno pokretanje, sa lokalnom bazom i bez Access-a:
+
+```bash
+npx wrangler dev --local --var DEV_USER:ti@primer.com
+```
+
+`DEV_USER` zaobilazi proveru tokena i nikad se ne podešava u produkciji.
 
 ## Podaci i privatnost
 
