@@ -53,6 +53,7 @@ Workflow: branch → PR → merge. Do not deploy by hand.
 ## Local development
 
 ```bash
+npm install
 npx wrangler dev --local --var DEV_USER:you@example.com
 ```
 

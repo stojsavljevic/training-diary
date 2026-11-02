@@ -2,6 +2,7 @@
 dnevnik-treninga-*.json
 *.json
 !package.json
+!package-lock.json
 
 # Cloudflare lokalni razvoj
 .dev.vars
