@@ -218,6 +218,9 @@ const LS={
   get(k,d){try{const v=localStorage.getItem('dt.'+k);return v?JSON.parse(v):d}catch(e){return d}},
   set(k,v){try{localStorage.setItem('dt.'+k,JSON.stringify(v))}catch(e){}}
 };
+/* structure the views rely on; a record that fails it is dropped, since one bad record used to blank the whole app */
+const okRec=kind=>x=>x&&x.id&&Array.isArray(x.exercises)&&x.exercises.every(e=>e&&typeof e.name==='string'
+  &&(kind!=='workouts'||Array.isArray(e.sets)&&e.sets.every(s=>s&&typeof s==='object')));
 
 /* ---------- constants ---------- */
 /* Plan: every exercise is 3 sets x 6 reps; kg is the starting weight. */
@@ -246,8 +249,8 @@ const DOWN='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/>
 /* ---------- state ---------- */
 const state={
   tab:'train',
-  workouts:LS.get('workouts',[]).filter(x=>x&&x.id&&Array.isArray(x.exercises)),
-  templates:LS.get('templates',[]).filter(x=>x&&x.id&&Array.isArray(x.exercises)),
+  workouts:LS.get('workouts',[]).filter(okRec('workouts')),
+  templates:LS.get('templates',[]).filter(okRec('templates')),
   active:LS.get('active',null),
   settings:Object.assign({rest:90,autoRest:true},LS.get('settings',{})),
   sync:'local',
@@ -436,13 +439,16 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
    items only this device has are uploaded, items deleted elsewhere (tombstones) are dropped. */
 const API=/(^|\.)netwatchly\.com$|\.workers\.dev$|^localhost$|^127\.0\.0\.1$/.test(location.hostname);
 let pend=LS.get('pending',{}),seq=Date.now(),flushing=false;
+/* keys the server refused (4xx): not queued again until reload, so one bad record can't block the rest or loop forever */
+const rej=new Set();
 const pendN=()=>Object.keys(pend).length;
-function queue(kind,id,op){pend[kind+'/'+id]={op,v:++seq};LS.set('pending',pend);flush()}
+const want=k=>{if(!rej.has(k))pend[k]={op:'put',v:++seq}};
+function queue(kind,id,op){rej.delete(kind+'/'+id);pend[kind+'/'+id]={op,v:++seq};LS.set('pending',pend);flush()}
 const saveSettings=()=>{state.settings.updated=Date.now();LS.set('settings',state.settings);if(API)queue('settings','main','put')};
 async function api(path,opt){
   const r=await fetch('/api/'+path,Object.assign({credentials:'same-origin',redirect:'manual',cache:'no-store'},opt));
   if(r.type==='opaqueredirect'||r.status===401||r.status===403){const e=new Error('auth');e.code='auth';throw e}
-  if(!r.ok){const e=new Error('http');e.code='http '+r.status;throw e}
+  if(!r.ok){const e=new Error('http');e.code='http '+r.status;e.status=r.status;throw e}
   return r.json();
 }
 function syncErr(e){state.sync=e&&e.code==='auth'?'auth':'local';renderSync()}
@@ -459,7 +465,11 @@ async function flush(){
         if(!o){delete pend[k];LS.set('pending',pend);continue}
         body=JSON.stringify(o);
       }
-      await api(k,p.op==='put'?{method:'PUT',body,headers:{'content-type':'application/json'}}:{method:'DELETE'});
+      try{await api(k,p.op==='put'?{method:'PUT',body,headers:{'content-type':'application/json'}}:{method:'DELETE'});rej.delete(k)}
+      catch(e){
+        if(!(e.status>=400&&e.status<500))throw e;
+        rej.add(k);toast('Server nije prihvatio jednu izmenu ('+e.code+'). Ostaje samo na ovom uređaju.');
+      }
       if(pend[k]&&pend[k].v===p.v){delete pend[k];LS.set('pending',pend)}
     }
     state.sync='live';renderSync();
@@ -475,25 +485,25 @@ async function pull(){
     const before=JSON.stringify([state.workouts,state.templates,state.settings]);
     ['workouts','templates'].forEach(kind=>{
       /* ignore malformed rows: one bad record must not break rendering */
-      const gone=new Set(d.deleted[kind]),srv=new Map(d[kind].filter(x=>x&&x.id&&Array.isArray(x.exercises)).map(x=>[x.id,x])),out=[];
+      const gone=new Set(d.deleted[kind]),srv=new Map(d[kind].filter(okRec(kind)).map(x=>[x.id,x])),out=[];
       state[kind].forEach(x=>{
         const p=pend[kind+'/'+x.id],s=srv.get(x.id);srv.delete(x.id);
         if(p){if(p.op==='put')out.push(x);return}
         if(s){
-          if(upd(x)>upd(s)){out.push(x);pend[kind+'/'+x.id]={op:'put',v:++seq}}else out.push(s);
+          if(upd(x)>upd(s)){out.push(x);want(kind+'/'+x.id)}else out.push(s);
           return;
         }
         if(gone.has(x.id))return;
         /* untouched starter templates (updated 0) go up only to an empty account, so they never undo a deletion */
         if(kind==='templates'&&!upd(x)&&(d.templates.length||d.deleted.templates.length))return;
-        out.push(x);pend[kind+'/'+x.id]={op:'put',v:++seq};
+        out.push(x);want(kind+'/'+x.id);
       });
       srv.forEach((x,id)=>{if(!pend[kind+'/'+id])out.push(x)});
       state[kind]=out;
     });
     if(!pend['settings/main']){
       if(d.settings&&upd(d.settings)>=upd(state.settings))state.settings=Object.assign({rest:90,autoRest:true},d.settings);
-      else pend['settings/main']={op:'put',v:++seq};
+      else want('settings/main');
     }
     sortW();sortT();
     LS.set('workouts',state.workouts);LS.set('templates',state.templates);LS.set('settings',state.settings);LS.set('pending',pend);
@@ -699,7 +709,7 @@ function viewHist(){
     const dur=w.end&&w.start?Math.max(1,Math.round((w.end-w.start)/60000)):0;
     h+=`<section class="card"><button class="hhead" data-do="hist-toggle" data-id="${w.id}" aria-expanded="${open}"><div class="grow"><div class="label">${esc(dFmt(w.start,{weekday:'long',day:'numeric',month:'long'}))}</div><h2>${esc(w.name)}</h2><div class="hint">${w.exercises.length} ${w.exercises.length===1?'vežba':'vežbi'} · ${fmtInt(volOf(w))} kg${dur?' · '+dur+' min':''}</div></div>${CARET}</button>`;
     if(open){
-      h+=`<div class="detail">${w.exercises.map(e=>`<div><h3>${esc(e.name)}</h3><div class="setline">${setsStr(e.name,e.sets,'  ·  ',true)}</div></div>`).join('')}
+      h+=`<div class="detail">${w.exercises.map(e=>`<div><h3>${esc(e.name)}</h3><div class="setline">${esc(setsStr(e.name,e.sets,'  ·  ',true))}</div></div>`).join('')}
       <div class="row gap"><button class="btn primary sm" data-do="hist-repeat" data-id="${w.id}">Ponovi trening</button>
       ${state.confirm==='del:'+w.id?`<button class="btn sm danger" data-do="hist-del" data-id="${w.id}" data-confirm="1">Potvrdi brisanje</button><button class="btn sm" data-do="noop">Ne</button>`:`<button class="btn sm ghost danger" data-do="hist-del" data-id="${w.id}" data-confirm="1">Obriši</button>`}</div></div>`;
     }
@@ -801,11 +811,11 @@ function viewProg(){
     if(bestR)h+=`<div class="kv"><span>Najviše u jednoj seriji</span><b>${bestR.v} <span class="muted" style="font-weight:400">· ${dt(bestR.t)}</span></b></div>`;
     h+=`<div class="kv"><span>Treninga</span><b>${ses.length}</b></div></section>`;
   }else{
-  if(bestW)h+=`<div class="kv"><span>Najteži set</span><b>${fmt(bestW.kg)} kg × ${bestW.reps} <span class="muted" style="font-weight:400">· ${esc(dFmt(bestW.t,{day:'numeric',month:'short',year:'numeric'}))}</span></b></div>`;
+  if(bestW)h+=`<div class="kv"><span>Najteži set</span><b>${fmt(bestW.kg)} kg × ${esc(bestW.reps)} <span class="muted" style="font-weight:400">· ${esc(dFmt(bestW.t,{day:'numeric',month:'short',year:'numeric'}))}</span></b></div>`;
   if(bestE)h+=`<div class="kv"><span>Procenjeni 1RM</span><b>${fmt(bestE.v)} kg <span class="muted" style="font-weight:400">· ${esc(dFmt(bestE.t,{day:'numeric',month:'short',year:'numeric'}))}</span></b></div>`;
   h+=`<div class="kv"><span>Treninga</span><b>${ses.length}</b></div><div class="kv"><span>Ukupan volumen</span><b>${fmtInt(ses.reduce((a,s)=>a+s.vol,0))} kg</b></div></section>`;
   }
-  h+=`<section class="card"><div class="label">Poslednji treninzi</div>${[...ses].reverse().slice(0,5).map(s=>`<div><div class="label" style="margin-bottom:2px">${esc(dFmt(s.t,{weekday:'short',day:'numeric',month:'short'}))}</div><div class="setline">${setsStr(state.progEx,s.sets,'  ·  ',true)}</div></div>`).join('')}</section>`;
+  h+=`<section class="card"><div class="label">Poslednji treninzi</div>${[...ses].reverse().slice(0,5).map(s=>`<div><div class="label" style="margin-bottom:2px">${esc(dFmt(s.t,{weekday:'short',day:'numeric',month:'short'}))}</div><div class="setline">${esc(setsStr(state.progEx,s.sets,'  ·  ',true))}</div></div>`).join('')}</section>`;
   h+=overviewCard();
   return h;
 }
