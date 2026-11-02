@@ -259,7 +259,8 @@ const state={
   confirm:null,
   progEx:null,
   progMetric:null,
-  rest:null,
+  /* kept in localStorage: on a phone the tab is often reloaded after leaving the page, and the timer used to vanish */
+  rest:LS.get('active',null)?LS.get('rest',null):null,
   sw:Object.assign({running:false,startedAt:0,base:0,laps:[]},LS.get('sw',{}))
 };
 
@@ -360,6 +361,7 @@ const sortW=()=>state.workouts.sort((a,b)=>b.start-a.start);
 const sortT=()=>state.templates.sort((a,b)=>(a.day||9)-(b.day||9)||a.name.localeCompare(b.name,'sr-Latn'));
 const clone=o=>JSON.parse(JSON.stringify(o));
 const persistActive=()=>LS.set('active',state.active);
+const persistRest=()=>LS.set('rest',state.rest);
 
 function allNames(){
   const m=new Map();
@@ -428,6 +430,8 @@ function beep(){
     });
   }catch(e){}
 }
+/* after a reload the restored timer has no audio context yet; the browser allows one only after a tap */
+document.addEventListener('pointerdown',()=>{if(state.rest)audioInit()});
 let wl=null;
 async function wake(){try{if(state.active&&!wl&&navigator.wakeLock){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null})}}catch(e){}}
 function unwake(){try{if(wl){wl.release();wl=null}}catch(e){}}
@@ -843,7 +847,7 @@ function rerenderSafe(){
 }
 
 /* ---------- rest timer ---------- */
-function startRest(sec){state.rest={end:Date.now()+sec*1000,total:sec,done:false,doneAt:0};renderRest()}
+function startRest(sec){state.rest={end:Date.now()+sec*1000,total:sec,done:false,doneAt:0};persistRest();renderRest()}
 function renderRest(){
   const el=$('#rest');
   if(!state.rest){el.hidden=true;el.innerHTML='';el.classList.remove('over');return}
@@ -872,7 +876,7 @@ function tick(){
     const box=document.getElementById('rest');if(box)box.classList.toggle('warn',warn);
     if(warn){try{if(navigator.vibrate)navigator.vibrate(120)}catch(e){}}
   }
-  if(over&&!r.done){r.done=true;r.warn=false;try{if(navigator.vibrate)navigator.vibrate([200,100,200])}catch(e){}beep();renderRest()}
+  if(over&&!r.done){r.done=true;r.warn=false;persistRest();try{if(navigator.vibrate)navigator.vibrate([200,100,200])}catch(e){}beep();renderRest()}
 }
 setInterval(tick,500);
 
@@ -934,22 +938,22 @@ document.addEventListener('click',e=>{
       const w={id:uid(),name:(a.name||'').trim()||'Trening',start:a.startedAt,end:Date.now(),exercises:exs};
       const prs=countPRs(w);
       state.workouts.push(w);sortW();LS.set('workouts',state.workouts);saveRemote('workouts',w);
-      state.active=null;persistActive();state.rest=null;state.tab='hist';state.openId=w.id;
+      state.active=null;persistActive();state.rest=null;persistRest();state.tab='hist';state.openId=w.id;
       unwake();render();window.scrollTo(0,0);
       toast(prs?`Sačuvano · ${prs} ${prs===1?'novi rekord':prs<5?'nova rekorda':'novih rekorda'}`:'Trening sačuvan');
       break;
     }
     case 'discard':
-      if(state.confirm==='discard'){state.confirm=null;state.active=null;persistActive();state.rest=null;unwake();render();}
+      if(state.confirm==='discard'){state.confirm=null;state.active=null;persistActive();state.rest=null;persistRest();unwake();render();}
       else{state.confirm='discard';render();}
       break;
     case 'rest-add':{
       const r=state.rest;if(!r)break;const dd=+d.d;
       if(r.done){if(dd>0)startRest(dd)}
-      else{r.end+=dd*1000;r.total=Math.max(1,r.total+dd);tick()}
+      else{r.end+=dd*1000;r.total=Math.max(1,r.total+dd);persistRest();tick()}
       break;
     }
-    case 'rest-skip':state.rest=null;renderRest();break;
+    case 'rest-skip':state.rest=null;persistRest();renderRest();break;
 
     case 'tpl-new':state.draft={id:null,name:'',exercises:[]};render();window.scrollTo(0,0);break;
     case 'tpl-edit':{const t=state.templates.find(x=>x.id===d.id);if(t){state.draft=clone(t);render();window.scrollTo(0,0)}break}
@@ -1045,6 +1049,7 @@ if(!LS.get('seeded',false)){
   LS.set('seeded',true);
 }
 sortW();sortT();
+if(state.rest&&state.rest.end<=Date.now())state.rest.done=true; // ended while away: show it as over, no beep
 render();wake();if(API)pull();else initDb();
 })();
 </script>

@@ -10,7 +10,7 @@ The user speaks Serbian (Latin script); answer in Serbian unless asked otherwise
 - Cloudflare Workers Builds is connected to GitHub `stojsavljevic/training-diary`: a PR runs `npx wrangler preview`, a merge to `main` runs `npx wrangler deploy`. The PR check is "Workers Builds: training-diary".
 - Build logs are not readable with the wrangler OAuth token (API returns Forbidden). If a build fails, ask the user to paste the log from the Cloudflare dashboard.
 - Commit messages: English, conventional (`feat:`, `fix:`, `build:`, `docs:`). PR descriptions may be in Serbian.
-- When app behaviour changes, add a version entry to CHANGELOG.md (in Serbian; current: version 20).
+- When app behaviour changes, add a version entry to CHANGELOG.md (in Serbian; current: version 21).
 
 ## Layout
 
@@ -29,7 +29,7 @@ Match the existing compact style: short names, dense one-line functions, comment
 
 - D1 `training-diary` (prod) and `training-diary-preview` (PR previews). Table `items(user, kind, id, data, updated, deleted)`, created lazily by the Worker. `kind` is `workouts`, `templates` or `settings` (id `main`). Deletes are tombstones (`deleted=1`).
 - `user` = email from the Access JWT. Access: team `https://rough-tree-2e60.cloudflareaccess.com`, AUD in `wrangler.jsonc` (Worker Access, policy "Cloudflare account members", covers production and previews). Same Access team as the user's portfolio site, so one login covers both.
-- Client (`index.html`, section "server storage"): `localStorage` keys `dt.workouts`, `dt.templates`, `dt.settings`, `dt.active`, `dt.sw`, `dt.seeded`, `dt.pending`. Every change goes into the `dt.pending` queue and is removed only after the server confirms. `pull()` runs on load, when the tab becomes visible, on `online`, and every 60 s. Merge rules: pending local change wins; otherwise newer `updated` wins; device-only items are uploaded; tombstoned items are dropped; untouched starter templates (`updated: 0`) are uploaded only to an empty account.
+- Client (`index.html`, section "server storage"): `localStorage` keys `dt.workouts`, `dt.templates`, `dt.settings`, `dt.active`, `dt.rest`, `dt.sw`, `dt.seeded`, `dt.pending`. Every change goes into the `dt.pending` queue and is removed only after the server confirms. `pull()` runs on load, when the tab becomes visible, on `online`, and every 60 s. Merge rules: pending local change wins; otherwise newer `updated` wins; device-only items are uploaded; tombstoned items are dropped; untouched starter templates (`updated: 0`) are uploaded only to an empty account.
 - Server mode is chosen by hostname (`const API=...` regex: `netwatchly.com`, `*.workers.dev`, `localhost`). If the domain changes, update that regex.
 - Record shape is checked on both sides (`okShape` in the Worker, `okRec` in the page): every exercise needs a string `name`; workout exercises also need a `sets` array, and the Worker requires numeric `kg`/`reps`. Bad records are rejected by the API and dropped by the client; one malformed record used to blank the whole app.
 - A change the server refuses with 4xx is removed from `dt.pending` (toast shown) and not re-queued until reload, so it can't block the rest of the queue.
@@ -50,7 +50,7 @@ Gotchas: `.gitignore` ignores every `*.json` except `package.json` and `package-
 ## Known issues / backlog (from the code review, not fixed yet)
 
 - Starting a template uses the template's kg/reps, not last session's values, so progress made in a session is lost next week unless the template is edited (`makeEx`).
-- Active workout, stopwatch and rest timer are device-only; the rest timer is lost on reload.
+- Active workout, stopwatch and rest timer are device-only (`dt.active`, `dt.sw`, `dt.rest`); they survive a reload but are not synced.
 - Import ignores `settings` although export includes them.
 - Dips (bodyweight) still shows a "kg" column; comment above `exVal` about Dips is stale.
 - `tpl-sets` action has no button (dead code).
