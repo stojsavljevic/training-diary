@@ -16,6 +16,16 @@
     "ACCESS_TEAM_DOMAIN": "https://rough-tree-2e60.cloudflareaccess.com",
     "ACCESS_AUD": "5cbfae584f81136abbb703c028ddfe8bd1ab0d9cf14dc2856e126a7295ef109e"
   },
+  // PR builds run `wrangler preview`: same Access app (it covers previews), separate database so previews never touch real data
+  "previews": {
+    "vars": {
+      "ACCESS_TEAM_DOMAIN": "https://rough-tree-2e60.cloudflareaccess.com",
+      "ACCESS_AUD": "5cbfae584f81136abbb703c028ddfe8bd1ab0d9cf14dc2856e126a7295ef109e"
+    },
+    "d1_databases": [
+      { "binding": "DB", "database_id": "6fa2c8b6-4e5e-4cf1-8fcd-b2a59edc4bc9" }
+    ]
+  },
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1,

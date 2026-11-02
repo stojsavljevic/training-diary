@@ -45,6 +45,8 @@ npx wrangler deploy
 
 Na sajt idu samo `index.html` i `_headers` (vidi `.assetsignore`).
 
+PR-ovi se objavljuju kao Preview (`wrangler preview`) sa posebnom bazom `training-diary-preview`, pa ne diraju prave podatke. Merge u `main` objavljuje na `training.netwatchly.com`.
+
 Lokalno pokretanje, sa lokalnom bazom i bez Access-a:
 
 ```bash
