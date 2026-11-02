@@ -2,6 +2,12 @@
 
 Stare verzije (1 do 16) nisu sačuvane kao posebni commitovi; ovo je pregled onoga što je ušlo u aplikaciju do sada.
 
+## Verzija 19
+- Sinhronizacija preko sopstvenog servera (Cloudflare Worker + D1, zaštita Cloudflare Access): isti treninzi, šabloni i podešavanja na svim uređajima
+- Promene se čuvaju u redu za slanje dok server ne potvrdi; podaci koji postoje samo na uređaju šalju se na server; obrisano na jednom uređaju briše se i na ostalima
+- Oznaka stanja čuvanja u zaglavlju
+- Izvoz u fajl radi i van Claude-a
+
 ## Verzija 18
 - Ispravan prikaz srpskih slova i prikaz na telefonu kada se stranica otvara van Claude-a (doctype, UTF-8, viewport)
 
