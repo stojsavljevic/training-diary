@@ -2,6 +2,9 @@
 
 Stare verzije (1 do 16) nisu sačuvane kao posebni commitovi; ovo je pregled onoga što je ušlo u aplikaciju do sada.
 
+## Verzija 24
+- Podsetnik „Prošli put“ tokom treninga ima razmake oko „×“: „12,5kg × 7“ umesto „12,5kg×7“
+
 ## Verzija 23
 - Serije u Istoriji, Napretku i podsetniku „Prošli put“ prikazuju jedinicu: „55kg × 7“ umesto „55 × 7“
 

@@ -297,8 +297,8 @@ const REF_MAP={
 const isBw=name=>String(name).trim().toLowerCase()==='dips';
 const unitOf=name=>isBw(name)?'pon.':'kg';
 const repsWord=n=>(n%10===1&&n%100!==11)?'ponavljanje':'ponavljanja';
-const setStr=(name,s,sp)=>isBw(name)?String(s.reps):fmt(s.kg)+(sp?'kg × ':'kg×')+s.reps;
-const setsStr=(name,sets,sep,sp)=>sets.map(x=>setStr(name,x,sp)).join(sep)+(isBw(name)?' pon.':'');
+const setStr=(name,s)=>isBw(name)?String(s.reps):fmt(s.kg)+'kg × '+s.reps;
+const setsStr=(name,sets,sep)=>sets.map(x=>setStr(name,x)).join(sep)+(isBw(name)?' pon.':'');
 const refOf=name=>{const k=REF_MAP[String(name).trim().toLowerCase()];return k?REF[k]:null};
 /* value compared with the table: estimated 1RM; dips = added-weight 1RM at body weight; farmer walk = heaviest load */
 function exVal(name,kg,reps){
@@ -599,7 +599,7 @@ function viewActive(){
   const topEx=a.exercises.findIndex(x=>!x.closed);
   a.exercises.forEach((e,ei)=>{
     const last=lastSession(e.name);
-    let hint=last?`Prošli put (${dFmt(last.date,{day:'numeric',month:'short'})}): ${setsStr(e.name,last.sets,' · ',false)}`:'Prvi put beležiš ovu vežbu';
+    let hint=last?`Prošli put (${dFmt(last.date,{day:'numeric',month:'short'})}): ${setsStr(e.name,last.sets,' · ')}`:'Prvi put beležiš ovu vežbu';
     if(e.note)hint+=' · Plan: '+e.note;
     const cur=ei===topEx?e.sets.findIndex(x=>!x.done):-1;
     if(e.closed){
@@ -715,7 +715,7 @@ function viewHist(){
     const dur=w.end&&w.start?Math.max(1,Math.round((w.end-w.start)/60000)):0;
     h+=`<section class="card"><button class="hhead" data-do="hist-toggle" data-id="${w.id}" aria-expanded="${open}"><div class="grow"><div class="label">${esc(dFmt(w.start,{weekday:'long',day:'numeric',month:'long'}))}</div><h2>${esc(w.name)}</h2><div class="hint">${w.exercises.length} ${w.exercises.length===1?'vežba':'vežbi'} · ${fmtInt(volOf(w))} kg${dur?' · '+dur+' min':''}</div></div>${CARET}</button>`;
     if(open){
-      h+=`<div class="detail">${w.exercises.map(e=>`<div><h3>${esc(e.name)}</h3><div class="setline">${esc(setsStr(e.name,e.sets,'  ·  ',true))}</div></div>`).join('')}
+      h+=`<div class="detail">${w.exercises.map(e=>`<div><h3>${esc(e.name)}</h3><div class="setline">${esc(setsStr(e.name,e.sets,'  ·  '))}</div></div>`).join('')}
       <div class="row gap"><button class="btn primary sm" data-do="hist-repeat" data-id="${w.id}">Ponovi trening</button>
       ${state.confirm==='del:'+w.id?`<button class="btn sm danger" data-do="hist-del" data-id="${w.id}" data-confirm="1">Potvrdi brisanje</button><button class="btn sm" data-do="noop">Ne</button>`:`<button class="btn sm ghost danger" data-do="hist-del" data-id="${w.id}" data-confirm="1">Obriši</button>`}</div></div>`;
     }
@@ -821,7 +821,7 @@ function viewProg(){
   if(bestE)h+=`<div class="kv"><span>Procenjeni 1RM</span><b>${fmt(bestE.v)} kg <span class="muted" style="font-weight:400">· ${esc(dFmt(bestE.t,{day:'numeric',month:'short',year:'numeric'}))}</span></b></div>`;
   h+=`<div class="kv"><span>Treninga</span><b>${ses.length}</b></div><div class="kv"><span>Ukupan volumen</span><b>${fmtInt(ses.reduce((a,s)=>a+s.vol,0))} kg</b></div></section>`;
   }
-  h+=`<section class="card"><div class="label">Poslednji treninzi</div>${[...ses].reverse().slice(0,5).map(s=>`<div><div class="label" style="margin-bottom:2px">${esc(dFmt(s.t,{weekday:'short',day:'numeric',month:'short'}))}</div><div class="setline">${esc(setsStr(state.progEx,s.sets,'  ·  ',true))}</div></div>`).join('')}</section>`;
+  h+=`<section class="card"><div class="label">Poslednji treninzi</div>${[...ses].reverse().slice(0,5).map(s=>`<div><div class="label" style="margin-bottom:2px">${esc(dFmt(s.t,{weekday:'short',day:'numeric',month:'short'}))}</div><div class="setline">${esc(setsStr(state.progEx,s.sets,'  ·  '))}</div></div>`).join('')}</section>`;
   h+=overviewCard();
   return h;
 }
