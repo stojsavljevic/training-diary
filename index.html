@@ -297,7 +297,7 @@ const REF_MAP={
 const isBw=name=>String(name).trim().toLowerCase()==='dips';
 const unitOf=name=>isBw(name)?'pon.':'kg';
 const repsWord=n=>(n%10===1&&n%100!==11)?'ponavljanje':'ponavljanja';
-const setStr=(name,s,sp)=>isBw(name)?String(s.reps):fmt(s.kg)+(sp?' × ':'×')+s.reps;
+const setStr=(name,s,sp)=>isBw(name)?String(s.reps):fmt(s.kg)+(sp?'kg × ':'kg×')+s.reps;
 const setsStr=(name,sets,sep,sp)=>sets.map(x=>setStr(name,x,sp)).join(sep)+(isBw(name)?' pon.':'');
 const refOf=name=>{const k=REF_MAP[String(name).trim().toLowerCase()];return k?REF[k]:null};
 /* value compared with the table: estimated 1RM; dips = added-weight 1RM at body weight; farmer walk = heaviest load */
