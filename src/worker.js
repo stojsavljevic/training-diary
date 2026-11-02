@@ -7,6 +7,11 @@ const KINDS=new Set(['workouts','templates','settings']);
 const OKID=/^[A-Za-z0-9_-]{1,64}$/;
 const MAX_BODY=256*1024;
 
+const isNum=v=>typeof v==='number'&&isFinite(v);
+/* the shape the page relies on when rendering; one malformed record used to blank the whole app */
+const okShape=(kind,o)=>kind==='settings'||Array.isArray(o.exercises)&&o.exercises.every(e=>e&&typeof e==='object'&&typeof e.name==='string'
+  &&(kind!=='workouts'||Array.isArray(e.sets)&&e.sets.every(s=>s&&isNum(s.kg)&&isNum(s.reps))));
+
 const json=(d,status=200)=>new Response(JSON.stringify(d),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 
 /* ---------- Access JWT ---------- */
@@ -76,7 +81,7 @@ async function handleApi(request,env,seg){
       let o;try{o=JSON.parse(body)}catch(e){return json({error:'bad_json'},400)}
       if(!o||typeof o!=='object'||Array.isArray(o))return json({error:'bad_json'},400);
       if(kind!=='settings'&&o.id!==id)return json({error:'id_mismatch'},400);
-      if(kind!=='settings'&&!Array.isArray(o.exercises))return json({error:'bad_shape'},400);
+      if(!okShape(kind,o))return json({error:'bad_shape'},400);
       await env.DB.prepare('INSERT INTO items(user,kind,id,data,updated,deleted) VALUES(?,?,?,?,?,0) ON CONFLICT(user,kind,id) DO UPDATE SET data=excluded.data,updated=excluded.updated,deleted=0')
         .bind(user,kind,id,body,Date.now()).run();
       return json({ok:true});
