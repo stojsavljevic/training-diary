@@ -623,8 +623,8 @@ function viewActive(){
   ${state.confirm==='discard'?`<div class="row gap"><span class="grow muted">Odbaciti ceo trening?</span><button class="btn sm danger" data-do="discard" data-confirm="1">Da, odbaci</button><button class="btn sm" data-do="noop">Ne</button></div>`:`<button class="btn sm ghost wide" data-do="discard" data-confirm="1">Odbaci trening</button>`}</section>`;
   return h;
 }
-/* sets are always 3, so the overview shows weight instead (reps for bodyweight) */
-const tplSum=t=>t.exercises.map(e=>e.name+(isBw(e.name)?' '+(e.reps||6)+' pon.':num(e.kg)?' '+fmt(num(e.kg))+' kg':'')).join(' · ');
+/* sets are always 3, so the overview shows weight × reps instead */
+const tplSum=t=>t.exercises.map(e=>e.name+' '+(!isBw(e.name)&&num(e.kg)?fmt(num(e.kg))+'kg × '+(e.reps||6):(e.reps||6)+' pon.')).join(' · ');
 function viewTpl(){
   if(state.draft)return viewTplEdit();
   let h=`<div class="row"><h2 class="grow">Šabloni</h2><button class="btn primary sm" data-do="tpl-new">Novi šablon</button></div>`;

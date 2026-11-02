@@ -3,7 +3,7 @@
 Stare verzije (1 do 16) nisu sačuvane kao posebni commitovi; ovo je pregled onoga što je ušlo u aplikaciju do sada.
 
 ## Verzija 22
-- Pregled šablona prikazuje kilažu svake vežbe umesto serija × ponavljanja (serija je uvek 3); za Dips ostaje broj ponavljanja
+- Pregled šablona prikazuje kilažu i ponavljanja svake vežbe (npr. „50kg × 7“) umesto serija × ponavljanja, jer je serija uvek 3; za Dips i vežbe bez kilaže samo broj ponavljanja
 
 ## Verzija 21
 - Tajmer pauze ostaje posle odlaska sa stranice ili ponovnog učitavanja (npr. dugme Home u Chrome-u) i nastavlja da odbrojava
