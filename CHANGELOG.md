@@ -2,6 +2,10 @@
 
 Stare verzije (1 do 16) nisu sačuvane kao posebni commitovi; ovo je pregled onoga što je ušlo u aplikaciju do sada.
 
+## Verzija 21
+- Tajmer pauze ostaje posle odlaska sa stranice ili ponovnog učitavanja (npr. dugme Home u Chrome-u) i nastavlja da odbrojava
+- Pauza koja je istekla dok stranica nije bila otvorena prikazuje se kao „Pauza prošla“, bez zvuka
+
 ## Verzija 19
 - Sinhronizacija preko sopstvenog servera (Cloudflare Worker + D1, zaštita Cloudflare Access): isti treninzi, šabloni i podešavanja na svim uređajima
 - Promene se čuvaju u redu za slanje dok server ne potvrdi; podaci koji postoje samo na uređaju šalju se na server; obrisano na jednom uređaju briše se i na ostalima
