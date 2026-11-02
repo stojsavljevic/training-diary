@@ -10,7 +10,7 @@ The user speaks Serbian (Latin script); answer in Serbian unless asked otherwise
 - Cloudflare Workers Builds is connected to GitHub `stojsavljevic/training-diary`: a PR runs `npx wrangler preview`, a merge to `main` runs `npx wrangler deploy`. The PR check is "Workers Builds: training-diary".
 - Build logs are not readable with the wrangler OAuth token (API returns Forbidden). If a build fails, ask the user to paste the log from the Cloudflare dashboard.
 - Commit messages: English, conventional (`feat:`, `fix:`, `build:`, `docs:`). PR descriptions may be in Serbian.
-- When app behaviour changes, add a version entry to CHANGELOG.md (in Serbian; current: version 22).
+- When app behaviour changes, add a version entry to CHANGELOG.md (in Serbian; current: version 23).
 
 ## Layout
 

@@ -2,6 +2,9 @@
 
 Stare verzije (1 do 16) nisu sačuvane kao posebni commitovi; ovo je pregled onoga što je ušlo u aplikaciju do sada.
 
+## Verzija 23
+- Serije u Istoriji, Napretku i podsetniku „Prošli put“ prikazuju jedinicu: „55kg × 7“ umesto „55 × 7“
+
 ## Verzija 22
 - Pregled šablona prikazuje kilažu i ponavljanja svake vežbe (npr. „50kg × 7“) umesto serija × ponavljanja, jer je serija uvek 3; za Dips i vežbe bez kilaže samo broj ponavljanja
 
