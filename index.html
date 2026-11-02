@@ -623,15 +623,17 @@ function viewActive(){
   ${state.confirm==='discard'?`<div class="row gap"><span class="grow muted">Odbaciti ceo trening?</span><button class="btn sm danger" data-do="discard" data-confirm="1">Da, odbaci</button><button class="btn sm" data-do="noop">Ne</button></div>`:`<button class="btn sm ghost wide" data-do="discard" data-confirm="1">Odbaci trening</button>`}</section>`;
   return h;
 }
+/* sets are always 3, so the overview shows weight × reps instead */
+const tplSum=t=>t.exercises.map(e=>e.name+' '+(!isBw(e.name)&&num(e.kg)?fmt(num(e.kg))+'kg × '+(e.reps||6):(e.reps||6)+' pon.')).join(' · ');
 function viewTpl(){
   if(state.draft)return viewTplEdit();
   let h=`<div class="row"><h2 class="grow">Šabloni</h2><button class="btn primary sm" data-do="tpl-new">Novi šablon</button></div>`;
   if(!state.templates.length){
     h+=`<p class="muted">Šablon je spisak vežbi koji pokrećeš jednim dodirom. Dodaj neki od gotovih i prilagodi ga.</p>`;
-    h+=STARTERS.map((t,i)=>`<section class="card"><div class="row"><div class="grow"><h2>${esc(t.name)}</h2><div class="hint">${esc(t.exercises.map(e=>e.name+' '+e.sets+'×'+(e.reps||6)).join(' · '))}</div></div><button class="btn sm" data-do="add-starter" data-i="${i}">Dodaj</button></div></section>`).join('');
+    h+=STARTERS.map((t,i)=>`<section class="card"><div class="row"><div class="grow"><h2>${esc(t.name)}</h2><div class="hint">${esc(tplSum(t))}</div></div><button class="btn sm" data-do="add-starter" data-i="${i}">Dodaj</button></div></section>`).join('');
   }else{
     h+=state.templates.map(t=>`<section class="card"><div class="row"><h2 class="grow">${esc(t.name)}</h2><span class="muted">${t.exercises.length} ${t.exercises.length===1?'vežba':'vežbi'}</span></div>
-    <p class="exsum">${esc(t.exercises.map(e=>e.name+' '+e.sets+'×'+(e.reps||6)).join(' · '))}</p>
+    <p class="exsum">${esc(tplSum(t))}</p>
     <div class="row gap"><button class="btn primary sm" data-do="start-tpl" data-id="${t.id}">Počni</button><button class="btn sm" data-do="tpl-edit" data-id="${t.id}">Izmeni</button></div></section>`).join('');
   }
   return h;
