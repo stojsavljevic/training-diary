@@ -246,8 +246,8 @@ const DOWN='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/>
 /* ---------- state ---------- */
 const state={
   tab:'train',
-  workouts:LS.get('workouts',[]),
-  templates:LS.get('templates',[]),
+  workouts:LS.get('workouts',[]).filter(x=>x&&x.id&&Array.isArray(x.exercises)),
+  templates:LS.get('templates',[]).filter(x=>x&&x.id&&Array.isArray(x.exercises)),
   active:LS.get('active',null),
   settings:Object.assign({rest:90,autoRest:true},LS.get('settings',{})),
   sync:'local',
@@ -474,7 +474,8 @@ async function pull(){
     const d=await api('sync');
     const before=JSON.stringify([state.workouts,state.templates,state.settings]);
     ['workouts','templates'].forEach(kind=>{
-      const gone=new Set(d.deleted[kind]),srv=new Map(d[kind].map(x=>[x.id,x])),out=[];
+      /* ignore malformed rows: one bad record must not break rendering */
+      const gone=new Set(d.deleted[kind]),srv=new Map(d[kind].filter(x=>x&&x.id&&Array.isArray(x.exercises)).map(x=>[x.id,x])),out=[];
       state[kind].forEach(x=>{
         const p=pend[kind+'/'+x.id],s=srv.get(x.id);srv.delete(x.id);
         if(p){if(p.op==='put')out.push(x);return}

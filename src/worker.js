@@ -76,6 +76,7 @@ async function handleApi(request,env,seg){
       let o;try{o=JSON.parse(body)}catch(e){return json({error:'bad_json'},400)}
       if(!o||typeof o!=='object'||Array.isArray(o))return json({error:'bad_json'},400);
       if(kind!=='settings'&&o.id!==id)return json({error:'id_mismatch'},400);
+      if(kind!=='settings'&&!Array.isArray(o.exercises))return json({error:'bad_shape'},400);
       await env.DB.prepare('INSERT INTO items(user,kind,id,data,updated,deleted) VALUES(?,?,?,?,?,0) ON CONFLICT(user,kind,id) DO UPDATE SET data=excluded.data,updated=excluded.updated,deleted=0')
         .bind(user,kind,id,body,Date.now()).run();
       return json({ok:true});
