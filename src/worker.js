@@ -10,7 +10,7 @@ const MAX_BODY=256*1024;
 const isNum=v=>typeof v==='number'&&isFinite(v);
 /* the shape the page relies on when rendering; one malformed record used to blank the whole app */
 const okShape=(kind,o)=>kind==='settings'||Array.isArray(o.exercises)&&o.exercises.every(e=>e&&typeof e==='object'&&typeof e.name==='string'
-  &&(kind!=='workouts'||Array.isArray(e.sets)&&e.sets.every(s=>s&&isNum(s.kg)&&isNum(s.reps))));
+  &&(kind==='workouts'?Array.isArray(e.sets)&&e.sets.every(s=>s&&isNum(s.kg)&&isNum(s.reps)):isNum(e.kg)&&isNum(e.reps)));
 
 const json=(d,status=200)=>new Response(JSON.stringify(d),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 

@@ -173,6 +173,11 @@ nav#nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-
 .ex .sn{font-size:15px}
 .card.closed.ex .tick{width:24px;height:24px}
 .card.closed.ex .tick svg{width:14px;height:14px}
+.acl{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--rs);overflow:hidden}
+.acl[hidden]{display:none}
+.aco{min-height:44px;padding:0 12px;border:0;border-top:1px solid var(--line);background:var(--surface);color:var(--ink);font:500 16px var(--f-body);text-align:left;cursor:pointer}
+.aco:first-child{border-top:0}
+.aco[aria-selected="true"],.aco:hover{background:var(--surface2)}
 .trow{display:flex;flex-direction:column;gap:8px;padding-top:10px;border-top:1px solid var(--line)}
 .label+.trow{border-top:0;padding-top:0}
 .tr2{gap:6px;flex-wrap:wrap}
@@ -206,7 +211,6 @@ nav#nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-
 <div id="rest" hidden></div>
 <div id="toast" role="status" aria-live="polite" hidden></div>
 <nav id="nav" aria-label="Glavna navigacija"></nav>
-<datalist id="exlist"></datalist>
 
 <script>
 (function(){
@@ -225,7 +229,7 @@ const okRec=kind=>x=>x&&x.id&&Array.isArray(x.exercises)&&x.exercises.every(e=>e
 
 /* ---------- constants ---------- */
 /* Plan: every exercise is 3 sets x 6 reps; kg is the starting weight. */
-const P=(name,kg,note)=>({name,sets:3,reps:6,kg:kg||'',note:note||''});
+const P=(name,kg,note)=>({name,sets:3,reps:6,kg:kg||0,note:note||''});
 const STARTERS=[
   {id:'plan-pon',day:1,name:'Ponedeljak · PUSH',exercises:[P('Ravan Smith',50),P('Chest press',70),P('Cable crossover',45),P('Dips'),P('Shoulder Press',40),P('Lat pulldown Š',60),P('Barbell Curl',25),P('Multi Flight',65),P('Triceps extension',45),P('Calf Machine',50)]},
   {id:'plan-sre',day:3,name:'Sreda · MIX',exercises:[P('Arnold Press',12.5),P('Lateral Raise',8),P('Assisted Pull Up U',55),P('Supinated Front Rise',8),P('Incline Bench Press / Smith',50),P('Pec deck',60),P('Dumbbell Curl',10),P('Cable row Š',65),P('Abductor machine s/š',75,'75 / 85 kg'),P('Dumbbell Shrugs',25)]},
@@ -271,7 +275,8 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const num=v=>{const n=parseFloat(String(v).replace(',','.'));return isFinite(n)?n:0};
 const fmt=n=>String(Math.round(n*100)/100).replace('.',',');
 const fmtInt=n=>Math.round(n).toLocaleString('sr-Latn-RS');
-const key=n=>String(n).trim().toLowerCase();
+/* exercise identity: case, diacritics and extra spaces don't matter (Cucanj = Čučanj); đ has no NFD decomposition */
+const key=n=>String(n).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/đ/g,'d').replace(/\s+/g,' ').trim();
 const e1rm=(kg,reps)=>kg>0&&reps>0?kg*(1+reps/30):0;
 
 /* ---------- reference levels (1RM, kg) ---------- */
@@ -295,15 +300,16 @@ const REF_MAP={
   'abductor machine s/š':'abductor machine','dumbbell shrugs':'dumbbell shrugs','reverse fly':'reverse fly',
   'upright row':'upright row','farmer walk':'farmers walk'
 };
-const isBw=name=>String(name).trim().toLowerCase()==='dips';
+const REF_K=Object.fromEntries(Object.entries(REF_MAP).map(([k,v])=>[key(k),v]));
+const isBw=name=>key(name)==='dips';
 const unitOf=name=>isBw(name)?'pon.':'kg';
 const repsWord=n=>(n%10===1&&n%100!==11)?'ponavljanje':'ponavljanja';
 const setStr=(name,s)=>isBw(name)?String(s.reps):fmt(s.kg)+'kg × '+s.reps;
 const setsStr=(name,sets,sep)=>sets.map(x=>setStr(name,x)).join(sep)+(isBw(name)?' pon.':'');
-const refOf=name=>{const k=REF_MAP[String(name).trim().toLowerCase()];return k?REF[k]:null};
+const refOf=name=>{const k=REF_K[key(name)];return k?REF[k]:null};
 /* value compared with the table: estimated 1RM; dips = added-weight 1RM at body weight; farmer walk = heaviest load */
 function exVal(name,kg,reps){
-  const k=String(name).trim().toLowerCase();
+  const k=key(name);
   if(k==='farmer walk')return kg>0?kg:0;
   if(k==='dips')return reps>0?reps:0;
   return e1rm(kg,reps);
@@ -340,7 +346,7 @@ function bestVals(){
 const segHtml=L=>L.segs.map(f=>`<i><b style="width:${(f*100).toFixed(0)}%"></b></i>`).join('');
 function levelCard(name,val){
   const th=refOf(name);if(!th||!(val>0))return '';
-  const L=levelOf(th,val),k=String(name).trim().toLowerCase(),bw=isBw(name);
+  const L=levelOf(th,val),k=key(name),bw=isBw(name);
   const cap=bw?'procenjeni maksimum':k==='farmer walk'?'najveća težina po bučici':'procenjeni 1RM';
   const nm=L.lv<0?'Ispod Beginner':LEVELS[L.lv];
   const cols=th.map((t,i)=>`<div class="${i<=L.lv?'on':''}${i===L.lv?' cur':''}">${LV_SHORT[i]}<span>${t}</span></div>`).join('');
@@ -364,12 +370,38 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 const persistActive=()=>LS.set('active',state.active);
 const persistRest=()=>LS.set('rest',state.rest);
 
-function allNames(){
-  const m=new Map();
-  BUILTIN.forEach(n=>m.set(key(n),n));
-  state.workouts.forEach(w=>w.exercises.forEach(e=>m.set(key(e.name),e.name)));
-  state.templates.forEach(t=>t.exercises.forEach(e=>m.set(key(e.name),e.name)));
-  return [...m.values()].sort((a,b)=>a.localeCompare(b,'sr-Latn'));
+/* key -> spelling shown; templates win, then the newest workout, then the starters */
+function nameMap(){
+  const m=new Map(),put=n=>{const k=key(n);if(k&&!m.has(k))m.set(k,n)};
+  state.templates.forEach(t=>t.exercises.forEach(e=>put(e.name)));
+  state.workouts.forEach(w=>w.exercises.forEach(e=>put(e.name)));
+  BUILTIN.forEach(put);
+  return m;
+}
+const allNames=()=>[...nameMap().values()].sort((a,b)=>a.localeCompare(b,'sr-Latn'));
+/* a typed name that only differs in case/diacritics takes the existing spelling */
+const canon=n=>nameMap().get(key(n))||String(n).trim().replace(/\s+/g,' ');
+/* up to 3 names containing q, those starting with it first; names in `skip` (keys) are already added */
+function suggest(q,skip){
+  q=key(q);if(q.length<2)return [];
+  const ns=allNames().filter(n=>!skip.has(key(n))),ks=n=>key(n).startsWith(q);
+  return [...ns.filter(ks),...ns.filter(n=>!ks(n)&&key(n).includes(q))].slice(0,3);
+}
+const tplEx=name=>{const k=key(name);for(const t of [...state.templates].sort((a,b)=>upd(b)-upd(a))){const e=t.exercises.find(x=>key(x.name)===k);if(e)return e}return null};
+/* values for a template row: lightest set of the last session, else another template */
+function tplVals(name){
+  const l=lastSession(name);
+  if(l&&l.sets.length){const s=l.sets.reduce((a,b)=>b.kg<a.kg||b.kg===a.kg&&b.reps<a.reps?b:a);return {kg:s.kg,reps:s.reps}}
+  const e=tplEx(name);return e?{kg:num(e.kg),reps:e.reps}:null;
+}
+/* templates store kg/reps as numbers like workouts (the Worker rejects anything else); true if something changed */
+function normT(t){
+  let ch=false;
+  t.exercises.forEach(e=>{
+    const kg=Math.max(0,num(e.kg)),r=Math.round(num(e.reps)),reps=r>0?Math.min(r,99):6;
+    if(e.kg!==kg||e.reps!==reps){e.kg=kg;e.reps=reps;ch=true}
+  });
+  return ch;
 }
 function lastSession(name){
   const k=key(name);
@@ -506,6 +538,8 @@ async function pull(){
       srv.forEach((x,id)=>{if(!pend[kind+'/'+id])out.push(x)});
       state[kind]=out;
     });
+    /* one-off: older templates kept kg as typed text; bump only on a real change so devices don't ping-pong */
+    state.templates.forEach(t=>{if(normT(t)){t.updated=Date.now();want('templates/'+t.id)}});
     if(!pend['settings/main']){
       if(d.settings&&upd(d.settings)>=upd(state.settings))state.settings=Object.assign({rest:90,autoRest:true},d.settings);
       else want('settings/main');
@@ -618,7 +652,7 @@ function viewActive(){
     </div>
     </section>`;
   });
-  h+=`<section class="card"><div class="label">Dodaj vežbu</div><div class="row gap" style="flex-wrap:nowrap"><input id="exName" class="txt grow" list="exlist" placeholder="Npr. Čučanj" autocomplete="off"><button class="btn primary" data-do="add-ex">Dodaj</button></div></section>`;
+  h+=`<section class="card"><div class="label">Dodaj vežbu</div><div class="row gap" style="flex-wrap:nowrap"><input id="exName" class="txt grow" placeholder="Npr. Čučanj" role="combobox" aria-autocomplete="list" aria-controls="acl" aria-expanded="false" autocomplete="off"><button class="btn primary" data-do="add-ex">Dodaj</button></div><div id="acl" class="acl" role="listbox" aria-label="Predlozi vežbi" hidden></div></section>`;
   h+=settingsCard();
   h+=`<section class="card"><button class="btn primary wide" data-do="finish">Završi trening</button>
   ${state.confirm==='discard'?`<div class="row gap"><span class="grow muted">Odbaciti ceo trening?</span><button class="btn sm danger" data-do="discard" data-confirm="1">Da, odbaci</button><button class="btn sm" data-do="noop">Ne</button></div>`:`<button class="btn sm ghost wide" data-do="discard" data-confirm="1">Odbaci trening</button>`}</section>`;
@@ -646,13 +680,13 @@ function viewTplEdit(){
   h+=`<section class="card"><div class="label">Vežbe</div>`;
   if(!d.exercises.length)h+=`<p class="muted">Još nema vežbi. Dodaj prvu ispod.</p>`;
   d.exercises.forEach((e,i)=>{
-    const kgv=e.kg===''||e.kg==null?'':String(e.kg).replace('.',',');
+    const kgv=typeof e.kg==='string'?e.kg.replace('.',','):num(e.kg)?fmt(num(e.kg)):'';
     h+=`<div class="trow"><div class="row"><div class="grow"><b>${esc(e.name)}</b></div>
     <button class="icon mv" data-do="tpl-mv" data-i="${i}" data-d="-1" aria-label="Pomeri gore"${i===0?' disabled':''}>${UP}</button><button class="icon mv" data-do="tpl-mv" data-i="${i}" data-d="1" aria-label="Pomeri dole"${i===d.exercises.length-1?' disabled':''}>${DOWN}</button>
     <button class="icon" data-do="tpl-rm-ex" data-i="${i}" aria-label="Ukloni vežbu">×</button></div>
     <div class="row tr2"><span class="muted">Težina</span><input class="txt kgin" inputmode="decimal" autocomplete="off" placeholder="0" data-tkg="${i}" value="${esc(kgv)}" aria-label="Težina za ${esc(e.name)}"><span class="muted">kg</span><span class="muted" style="margin-left:12px">Pon.</span><input class="txt kgin" inputmode="numeric" autocomplete="off" placeholder="6" data-trp="${i}" value="${esc(e.reps==null?'':e.reps)}" aria-label="Ponavljanja za ${esc(e.name)}"></div></div>`;
   });
-  h+=`<div class="trow"><input id="exName" class="txt" placeholder="Naziv nove vežbe" autocomplete="off"><div class="row"><input id="exKg" class="txt kgin" inputmode="decimal" autocomplete="off" placeholder="kg" aria-label="Težina nove vežbe"><input id="exReps" class="txt kgin" inputmode="numeric" autocomplete="off" placeholder="pon." aria-label="Ponavljanja nove vežbe"><button class="btn primary grow" data-do="tpl-add-ex">Dodaj</button></div></div></section>`;
+  h+=`<div class="trow"><input id="exName" class="txt" placeholder="Naziv nove vežbe" role="combobox" aria-autocomplete="list" aria-controls="acl" aria-expanded="false" autocomplete="off"><div id="acl" class="acl" role="listbox" aria-label="Predlozi vežbi" hidden></div><div class="row"><input id="exKg" class="txt kgin" inputmode="decimal" autocomplete="off" placeholder="kg" aria-label="Težina nove vežbe"><input id="exReps" class="txt kgin" inputmode="numeric" autocomplete="off" placeholder="pon." aria-label="Ponavljanja nove vežbe"><button class="btn primary grow" data-do="tpl-add-ex">Dodaj</button></div></div></section>`;
   h+=`<section class="card"><button class="btn primary wide" data-do="tpl-save">Sačuvaj šablon</button><button class="btn wide" data-do="tpl-cancel">Odustani</button>`;
   if(d.id)h+=state.confirm==='tpl-del'?`<div class="row gap"><span class="grow muted">Obrisati šablon?</span><button class="btn sm danger" data-do="tpl-delete" data-confirm="1">Da, obriši</button><button class="btn sm" data-do="noop">Ne</button></div>`:`<button class="btn sm ghost danger wide" data-do="tpl-delete" data-confirm="1">Obriši šablon</button>`;
   return h+'</section>';
@@ -700,7 +734,7 @@ function parseImport(txt){
   });
   o.templates.forEach(x=>{
     if(!x||!OKID.test(String(x.id))||!Array.isArray(x.exercises))return;
-    const exs=x.exercises.filter(e=>e&&typeof e.name==='string').map(e=>({name:e.name.slice(0,80),sets:Math.max(1,Math.min(10,Math.round(num(e.sets))||3)),reps:Math.max(1,Math.min(99,Math.round(num(e.reps))||6)),kg:(typeof e.kg==='number'||typeof e.kg==='string')?e.kg:'',note:String(e.note||'').slice(0,80)}));
+    const exs=x.exercises.filter(e=>e&&typeof e.name==='string').map(e=>({name:e.name.slice(0,80),sets:Math.max(1,Math.min(10,Math.round(num(e.sets))||3)),reps:Math.max(1,Math.min(99,Math.round(num(e.reps))||6)),kg:Math.max(0,num(e.kg)),note:String(e.note||'').slice(0,80)}));
     if(!exs.length)return;
     const tpl={id:String(x.id),name:String(x.name||'Šablon').slice(0,80),exercises:exs,updated:Date.now()};
     if(Number.isInteger(x.day)&&x.day>=0&&x.day<=6)tpl.day=x.day;
@@ -833,7 +867,6 @@ function renderNav(){
 }
 function render(){
   renderNav();
-  $('#exlist').innerHTML=allNames().map(n=>`<option value="${esc(n)}">`).join('');
   let v;
   if(state.tab==='train')v=state.active?viewActive():viewIdle();
   else if(state.tab==='tpl')v=viewTpl();
@@ -897,7 +930,45 @@ function closeEx(i){
 }
 function addExFromInput(){
   const inp=$('#exName');const name=inp?inp.value.trim():'';
-  return name;
+  return name&&canon(name);
+}
+/* exercises already in the open workout / template draft: not suggested, not added twice */
+const curList=()=>state.tab==='tpl'&&state.draft?state.draft.exercises:state.tab==='train'&&state.active?state.active.exercises:[];
+const isIn=n=>curList().some(x=>key(x.name)===key(n));
+/* new exercise in a workout: per-set values of the last session, else the template's */
+function addActive(n){
+  if(isIn(n)){toast('Vežba je već u treningu');return}
+  state.active.exercises.push(makeEx(n,lastSession(n)?null:tplEx(n)));persistActive();render();
+}
+const kgTxt=v=>num(v)?fmt(num(v)):'';
+function fillTplRow(n){
+  const v=tplVals(n),k=$('#exKg'),r=$('#exReps');
+  if(v&&k)k.value=kgTxt(v.kg);
+  if(v&&r)r.value=v.reps;
+}
+/* ---------- exercise autocomplete ---------- */
+let acSel=-1;
+const acOpts=()=>[...document.querySelectorAll('#acl .aco')];
+function acHide(){const l=$('#acl'),i=$('#exName');acSel=-1;if(l){l.hidden=true;l.innerHTML=''}if(i){i.setAttribute('aria-expanded','false');i.removeAttribute('aria-activedescendant')}}
+function acUpdate(){
+  const i=$('#exName'),l=$('#acl');if(!i||!l)return;
+  const ns=suggest(i.value,new Set(curList().map(x=>key(x.name))));
+  if(!ns.length){acHide();return}
+  acSel=-1;l.innerHTML=ns.map((n,j)=>`<button type="button" class="aco" id="aco${j}" role="option" aria-selected="false" tabindex="-1" data-do="ac-pick" data-name="${esc(n)}">${esc(n)}</button>`).join('');
+  l.hidden=false;i.setAttribute('aria-expanded','true');i.removeAttribute('aria-activedescendant');
+}
+function acMove(d){
+  const o=acOpts();if(!o.length)return;
+  acSel=(acSel+1+d+o.length+1)%(o.length+1)-1; // -1 = back in the text field
+  o.forEach((x,j)=>x.setAttribute('aria-selected',j===acSel));
+  const i=$('#exName');if(acSel<0)i.removeAttribute('aria-activedescendant');else i.setAttribute('aria-activedescendant',o[acSel].id);
+}
+/* workout: one tap adds it; template: fills name, kg and reps, Dodaj confirms */
+function acPick(n){
+  acHide();
+  if(state.tab==='train'&&state.active){addActive(n);return}
+  const i=$('#exName');if(i)i.value=n;
+  fillTplRow(n);
 }
 document.addEventListener('click',e=>{
   const b=e.target.closest('[data-do]');
@@ -930,7 +1001,8 @@ document.addEventListener('click',e=>{
       }else s.done=false;
       persistActive();render();break;
     }
-    case 'add-ex':{const n=addExFromInput();if(!n)break;a.exercises.push(makeEx(n));persistActive();render();break}
+    case 'add-ex':{const n=addExFromInput();if(n)addActive(n);break}
+    case 'ac-pick':acPick(d.name);break;
     case 'finish':{
       const exs=[];
       a.exercises.forEach(x=>{
@@ -961,7 +1033,15 @@ document.addEventListener('click',e=>{
     case 'tpl-new':state.draft={id:null,name:'',exercises:[]};render();window.scrollTo(0,0);break;
     case 'tpl-edit':{const t=state.templates.find(x=>x.id===d.id);if(t){state.draft=clone(t);render();window.scrollTo(0,0)}break}
     case 'add-starter':{const s=STARTERS[+d.i];const t={id:s.id,day:s.day,name:s.name,exercises:clone(s.exercises),updated:Date.now()};state.templates.push(t);sortT();LS.set('templates',state.templates);saveRemote('templates',t);render();toast('Šablon "'+s.name+'" je dodat');break}
-    case 'tpl-add-ex':{const n=addExFromInput();if(!n)break;const kgEl=$('#exKg'),rpEl=$('#exReps');const rr=Math.round(num(rpEl?rpEl.value:''));state.draft.exercises.push({name:n,sets:3,reps:rr>0?Math.min(rr,99):6,kg:kgEl?kgEl.value.trim():'',note:''});render();const i=$('#exName');if(i)i.focus();break}
+    case 'tpl-add-ex':{
+      const n=addExFromInput();if(!n)break;
+      if(isIn(n)){toast('Vežba je već u šablonu');break}
+      const kgEl=$('#exKg'),rpEl=$('#exReps');
+      if(kgEl&&rpEl&&!kgEl.value.trim()&&!rpEl.value.trim())fillTplRow(n); // typed without picking: same values as a pick
+      const rr=Math.round(num(rpEl?rpEl.value:''));
+      state.draft.exercises.push({name:n,sets:3,reps:rr>0?Math.min(rr,99):6,kg:Math.max(0,num(kgEl?kgEl.value:'')),note:''});
+      render();const i=$('#exName');if(i)i.focus();break;
+    }
     case 'tpl-rm-ex':state.draft.exercises.splice(+d.i,1);render();break;
     case 'tpl-sets':{const ex=state.draft.exercises[+d.i];ex.sets=Math.max(1,Math.min(10,ex.sets+(+d.d)));render();break}
     case 'tpl-mv':{const ex=state.draft.exercises,i=+d.i,j=i+(+d.d);if(j>=0&&j<ex.length){const t=ex[i];ex[i]=ex[j];ex[j]=t;render()}break}
@@ -969,12 +1049,21 @@ document.addEventListener('click',e=>{
     case 'tpl-save':{
       const dr=state.draft;
       if(!dr.exercises.length){toast('Dodaj bar jednu vežbu');break}
-      dr.exercises.forEach(x=>{const r=Math.round(num(x.reps));x.reps=r>0?Math.min(r,99):6});
       const t={id:dr.id||uid(),day:dr.day,name:(dr.name||'').trim()||'Šablon',exercises:dr.exercises,updated:Date.now()};
-      const i=state.templates.findIndex(x=>x.id===t.id);
+      normT(t);
+      const i=state.templates.findIndex(x=>x.id===t.id),old=i>=0?state.templates[i]:null;
+      /* an exercise's kg/reps are the same in every template: copy rows changed or added in this edit to the others
+         (only those, so saving one template never overwrites another's values with this one's stale ones) */
+      const was=new Map(old?old.exercises.map(e=>[key(e.name),e]):[]),chg=t.exercises.filter(e=>{const o=was.get(key(e.name));return !o||num(o.kg)!==e.kg||num(o.reps)!==e.reps});
+      let nOther=0;
+      state.templates.forEach(o=>{
+        if(o.id===t.id)return;let ch=false;
+        chg.forEach(e=>o.exercises.forEach(x=>{if(key(x.name)===key(e.name)&&(num(x.kg)!==e.kg||num(x.reps)!==e.reps)){x.kg=e.kg;x.reps=e.reps;ch=true}}));
+        if(ch){normT(o);o.updated=t.updated;saveRemote('templates',o);nOther++}
+      });
       if(i>=0)state.templates[i]=t;else state.templates.push(t);
       sortT();LS.set('templates',state.templates);saveRemote('templates',t);
-      state.draft=null;render();toast('Šablon sačuvan');break;
+      state.draft=null;render();toast(nOther?`Šablon sačuvan · vrednosti ažurirane i u ${nOther} ${nOther===1?'drugom šablonu':'druga šablona'}`:'Šablon sačuvan');break;
     }
     case 'tpl-delete':
       if(state.confirm==='tpl-del'){
@@ -1022,6 +1111,7 @@ app.addEventListener('input',e=>{
     s[t.dataset.f]=t.value;persistActive();
   }else if(t.id==='wName'&&state.active){state.active.name=t.value;persistActive()}
   else if(t.id==='tName'&&state.draft){state.draft.name=t.value}
+  else if(t.id==='exName')acUpdate();
   else if(t.dataset&&t.dataset.tkg!==undefined&&state.draft){state.draft.exercises[+t.dataset.tkg].kg=t.value}
   else if(t.dataset&&t.dataset.trp!==undefined&&state.draft){state.draft.exercises[+t.dataset.trp].reps=t.value}
 });
@@ -1035,7 +1125,14 @@ app.addEventListener('change',async e=>{
   }
   if(e.target.id==='progSel'){state.progEx=e.target.value;render()}
 });
+/* keep focus in the text field while an option is pressed, so the tap isn't lost to blur */
+app.addEventListener('mousedown',e=>{if(e.target.closest('.aco'))e.preventDefault()});
 app.addEventListener('keydown',e=>{
+  if(e.target.id==='exName'&&!$('#acl').hidden){
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();acMove(e.key==='ArrowDown'?1:-1);return}
+    if(e.key==='Escape'){acHide();return}
+    if(e.key==='Enter'&&acSel>=0){e.preventDefault();acPick(acOpts()[acSel].dataset.name);return}
+  }
   if(e.key==='Enter'&&(e.target.id==='exName'||e.target.id==='exKg'||e.target.id==='exReps')){
     e.preventDefault();
     const btn=e.target.closest('.card').querySelector('[data-do$="add-ex"]');
@@ -1051,6 +1148,7 @@ if(!LS.get('seeded',false)){
   }
   LS.set('seeded',true);
 }
+state.templates.forEach(normT); // in memory only: pull() bumps and uploads what actually changed
 sortW();sortT();
 if(state.rest&&state.rest.end<=Date.now())state.rest.done=true; // ended while away: show it as over, no beep
 render();wake();if(API)pull();else initDb();

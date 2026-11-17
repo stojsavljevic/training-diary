@@ -2,6 +2,13 @@
 
 Stare verzije (1 do 16) nisu sačuvane kao posebni commitovi; ovo je pregled onoga što je ušlo u aplikaciju do sada.
 
+## Verzija 26
+- Predlozi pri dodavanju vežbe (trening, novi šablon, izmena šablona): posle 2 slova nudi do 3 postojeće vežbe; prvo one koje počinju unetim slovima, pa one koje ih sadrže, abecedno; vežbe koje su već dodate se ne nude
+- U treningu jedan dodir na predlog dodaje vežbu sa serijama iz poslednjeg treninga (ako ga nema, iz šablona); u šablonu predlog popunjava kilažu i ponavljanja iz najlakše serije poslednjeg treninga
+- Naziv vežbe ne zavisi od velikih slova, kvačica i razmaka: „pec DECK“ i „Pec deck“, „Cucanj“ i „Čučanj“ su ista vežba, a ukucan naziv preuzima postojeći oblik; ista vežba se ne može dodati dvaput
+- Kilaža i ponavljanja vežbe su ista u svim šablonima: izmena ili dodavanje vežbe u jednom šablonu prenosi vrednosti u ostale šablone sa tom vežbom
+- Šabloni čuvaju kilažu kao broj, kao i treninzi (postojeći šabloni se jednom sami ujednače); prikaz je uvek sa zarezom
+
 ## Verzija 25
 - Aplikacija ima ikonicu u tabu browsera (favicon): bela bučica na zelenoj pozadini
 

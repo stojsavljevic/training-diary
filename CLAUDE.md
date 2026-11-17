@@ -10,7 +10,7 @@ The user speaks Serbian (Latin script); answer in Serbian unless asked otherwise
 - Cloudflare Workers Builds is connected to GitHub `stojsavljevic/training-diary`: a PR runs `npx wrangler preview`, a merge to `main` runs `npx wrangler deploy`. The PR check is "Workers Builds: training-diary".
 - Build logs are not readable with the wrangler OAuth token (API returns Forbidden). If a build fails, ask the user to paste the log from the Cloudflare dashboard.
 - Commit messages: English, conventional (`feat:`, `fix:`, `build:`, `docs:`). PR descriptions may be in Serbian.
-- When app behaviour changes, add a version entry to CHANGELOG.md (in Serbian; current: version 25).
+- When app behaviour changes, add a version entry to CHANGELOG.md (in Serbian; current: version 26).
 
 ## Layout
 
@@ -31,7 +31,8 @@ Match the existing compact style: short names, dense one-line functions, comment
 - `user` = email from the Access JWT. Access: team `https://rough-tree-2e60.cloudflareaccess.com`, AUD in `wrangler.jsonc` (Worker Access, policy "Cloudflare account members", covers production and previews). Same Access team as the user's portfolio site, so one login covers both.
 - Client (`index.html`, section "server storage"): `localStorage` keys `dt.workouts`, `dt.templates`, `dt.settings`, `dt.active`, `dt.rest`, `dt.sw`, `dt.seeded`, `dt.pending`. Every change goes into the `dt.pending` queue and is removed only after the server confirms. `pull()` runs on load, when the tab becomes visible, on `online`, and every 60 s. Merge rules: pending local change wins; otherwise newer `updated` wins; device-only items are uploaded; tombstoned items are dropped; untouched starter templates (`updated: 0`) are uploaded only to an empty account.
 - Server mode is chosen by hostname (`const API=...` regex: `netwatchly.com`, `*.workers.dev`, `localhost`). If the domain changes, update that regex.
-- Record shape is checked on both sides (`okShape` in the Worker, `okRec` in the page): every exercise needs a string `name`; workout exercises also need a `sets` array, and the Worker requires numeric `kg`/`reps`. Bad records are rejected by the API and dropped by the client; one malformed record used to blank the whole app.
+- Record shape is checked on both sides (`okShape` in the Worker, `okRec` in the page): every exercise needs a string `name`; workout exercises also need a `sets` array, and the Worker requires numeric `kg`/`reps` (per set in workouts, per exercise in templates). Templates used to store kg as typed text; `normT` converts them and `pull()` uploads the converted ones once. Bad records are rejected by the API and dropped by the client; one malformed record used to blank the whole app.
+- Exercise identity is `key()`: lowercase, no diacritics (đ → d), single spaces. `canon()` gives a typed name the existing spelling. Saving a template copies kg/reps of the exercises changed or added in that edit to the other templates (only those, so a stale value never overwrites another template).
 - A change the server refuses with 4xx is removed from `dt.pending` (toast shown) and not re-queued until reload, so it can't block the rest of the queue.
 - The old Claude-artifact storage path (`initDb`, `window.claude.use('db')`) is still in the code but unused. The artifact was deleted on 2026-11-02. It can be removed in a cleanup.
 - Never delete or rewrite production rows without the user's explicit OK. Read-only checks: `npx wrangler d1 execute training-diary --remote --json --command "..."`.
