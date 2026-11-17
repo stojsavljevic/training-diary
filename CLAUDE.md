@@ -47,6 +47,17 @@ There are no automated tests. Before opening a PR:
 
 Gotchas: `.gitignore` ignores every `*.json` except `package.json` and `package-lock.json` (use `.jsonc` for config). Wrangler is pinned to an exact version in `package.json` so builds don't pick up a new release by surprise; bump it deliberately in its own PR. `wrangler preview` requires the `previews` block in `wrangler.jsonc` for every binding and var.
 
+## Claude Code sandbox
+
+Bash runs in the Claude Code sandbox (bubblewrap), configured in `.claude/settings.local.json`. That file is local only (`*.json` is gitignored), so this section is the record of what it contains:
+
+- Writes: only the project, `$TMPDIR`, `~/.npm` and wrangler's `logs`/`registry`/`metrics.json`. The wrangler OAuth token (`~/.config/.wrangler/config`) is unreadable.
+- Network: npm registry and GitHub allowed; `cloudflare.com`/`*.cloudflare.com` denied, so nothing in the sandbox can reach production. The wrangler telemetry denials (`sparrow.cloudflare.com`) are expected noise.
+- `gh` and `git push` run outside the sandbox (their token is in the keyring over D-Bus, which the sandbox blocks). This works only when every part of the call matches: a pipe, `cd`, `$(...)` or a heredoc keeps the call sandboxed and it fails. Use `gh pr create --body-file <file>`.
+- `wrangler deploy` is also denied by a permission rule. The read-only `wrangler d1 execute --remote` checks need an unsandboxed run, which asks the user first.
+- The dev server started with `preview_start` (`.claude/launch.json`) is not a Bash call and is not sandboxed.
+- Inside the sandbox, empty stubs such as `.bashrc`, `.gitconfig`, `.idea` and `.vscode` show up in the project root. They are listed in `.git/info/exclude`; never commit them.
+
 ## Known issues / backlog (from the code review, not fixed yet)
 
 - Starting a template uses the template's kg/reps, not last session's values, so progress made in a session is lost next week unless the template is edited (`makeEx`).
