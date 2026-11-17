@@ -5,7 +5,8 @@ A gym training log for the phone: a single-page app (`index.html`, UI in Serbian
 ## Features
 
 - Log sets (kg × reps), 3 sets per exercise; done exercises collapse and move to the bottom; cards can be reordered
-- Weekly templates (Monday PUSH, Wednesday MIX, Friday PULL) with editable weight, reps and order
+- Weekly templates (Monday PUSH, Wednesday MIX, Friday PULL) with editable weight, reps and order; an exercise's weight and reps are kept the same in every template
+- Exercise autocomplete when adding an exercise (after 2 letters, up to 3 suggestions, prefix matches first); names match regardless of case, diacritics and spacing
 - Rest timer (default 90 s): warning in the last 10 s, counts below zero in red
 - Stopwatch with laps
 - History, progress charts per exercise (weight, estimated 1RM, volume, reps)
